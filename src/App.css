@@ -1,0 +1,16 @@
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: #eee;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bbb;
+  border-radius: 20px;
+  border: solid 3px #eee;
+}
+
+::-webkit-scrollbar {
+  width: auto;
+  height: auto;
+  scrollbar-width: thin;
+}
