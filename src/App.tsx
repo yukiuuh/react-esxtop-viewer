@@ -6,17 +6,18 @@ import "@cds/core/internal-components/split-handle/register.js";
 import "@cds/core/styles/theme.dark.css"; // pre-minified version breaks
 import { CdsDivider } from "@cds/react/divider";
 import { Datum } from "plotly.js";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import "./App.css";
 import { computeEsxtopFieldTree, EsxtopData } from "./esxtop";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
 import LoadingOverlay from "./LoadingOverlay";
 import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
-import PerformanceChart from "./PerformanceChart";
+import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
 import { parseCSV } from "./utils";
+import { CdsButton } from "@cds/react/button";
 
 const App: React.FC = () => {
   const [esxtopData, setEsxtopData] = useState<EsxtopData[]>([]);
@@ -28,6 +29,10 @@ const App: React.FC = () => {
   const [splitPosition, setSplitPosition] = useState(20);
   const metricField = esxtopData[selectedEsxtopDataIndex]?.metricField || [];
   const metricData = esxtopData[selectedEsxtopDataIndex]?.metricData || [];
+  const performanceChartRef = useRef<PerformanceChartHandle>(null);
+  const handleExportToImage = () => {
+    performanceChartRef.current?.exportToImage();
+  };
 
   return (
     <div className="main-container">
@@ -84,6 +89,7 @@ const App: React.FC = () => {
               </div>
               {selectedNode ? (
                 <PerformanceChart
+                  ref={performanceChartRef}
                   splitPosition={splitPosition}
                   node={selectedNode}
                   metricData={metricData}
@@ -99,47 +105,60 @@ const App: React.FC = () => {
             cds-layout="align:shrink"
           ></CdsDivider>
           <div cds-layout="align:shrink m:sm">
-            <FileLoader
-              status={fileStatus}
-              loading={loading}
-              onChangeFiles={(f) => {
-                setFileStatus("neutral");
-                if (f.length == 0) {
-                  setEsxtopData([]);
-                } else {
-                  setLoading(true);
-                  Promise.all(
-                    f.map(async (file) => {
-                      return new Promise<EsxtopData>((resolve, reject) => {
-                        parseCSV(file)
-                          .then((r) => {
-                            const field = (r.data[0] as string[]) || [];
-                            const metricData =
-                              (r.data.slice(1) as Datum[][]) || [];
-                            const fieldTree = computeEsxtopFieldTree(field);
-                            resolve({
-                              fileName: file.name,
-                              metricField: field,
-                              metricFieldTree: fieldTree,
-                              metricData: metricData,
-                            });
-                          })
-                          .catch(reject);
+            <div cds-layout="horizontal gap:md align:vertical-center">
+              <FileLoader
+                status={fileStatus}
+                loading={loading}
+                onChangeFiles={(f) => {
+                  setFileStatus("neutral");
+                  if (f.length == 0) {
+                    setEsxtopData([]);
+                  } else {
+                    setLoading(true);
+                    Promise.all(
+                      f.map(async (file) => {
+                        return new Promise<EsxtopData>((resolve, reject) => {
+                          parseCSV(file)
+                            .then((r) => {
+                              const field = (r.data[0] as string[]) || [];
+                              const metricData =
+                                (r.data.slice(1) as Datum[][]) || [];
+                              const fieldTree = computeEsxtopFieldTree(field);
+                              resolve({
+                                fileName: file.name,
+                                metricField: field,
+                                metricFieldTree: fieldTree,
+                                metricData: metricData,
+                              });
+                            })
+                            .catch(reject);
+                        });
+                      }),
+                    )
+                      .then((e) => {
+                        setEsxtopData([...e]);
+                        setFileStatus("success");
+                        setLoading(false);
+                      })
+                      .catch((e) => {
+                        console.error("file loading failed", e);
+                        setFileStatus("error");
                       });
-                    }),
-                  )
-                    .then((e) => {
-                      setEsxtopData([...e]);
-                      setFileStatus("success");
-                      setLoading(false);
-                    })
-                    .catch((e) => {
-                      console.error("file loading failed", e);
-                      setFileStatus("error");
-                    });
-                }
-              }}
-            />
+                  }
+                }}
+              />
+              <CdsButton
+                cds-layout="align:right"
+                action="outline"
+                size="sm"
+                disabled={!selectedNode}
+                onClick={() => {
+                  handleExportToImage();
+                }}
+              >
+                EXPORT
+              </CdsButton>
+            </div>
           </div>
         </div>
       </div>

@@ -27,7 +27,7 @@ const FileLoader: React.FC<Props> = (props) => {
   };
 
   return (
-    <div cds-layout="horizontal gap:md align:left">
+    <div cds-layout="horizontal gap:md align:stretch">
       <CdsFile layout="compact" status={props.status}>
         <label>Input File(s): </label>
         <input
