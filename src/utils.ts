@@ -48,4 +48,10 @@ const analysisFields = (fields: string[]) => {
   return root;
 };
 
-export { parseCSV, analysisFields };
+const isTauri = () => {
+  return (
+    typeof window !== "undefined" && typeof window.__TAURI__ !== "undefined"
+  );
+};
+
+export { parseCSV, analysisFields, isTauri };

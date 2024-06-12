@@ -30,8 +30,12 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      - run: echo "REPOSITORY_NAME=${GITHUB_REPOSITORY#${GITHUB_REPOSITORY_OWNER}/}" >> $GITHUB_ENV
+
       - name: Build the project
         run: yarn build
+        env:
+          BASE_PATH: ${{ env.REPOSITORY_NAME }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
