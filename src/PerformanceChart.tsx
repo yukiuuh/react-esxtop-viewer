@@ -101,7 +101,7 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
 
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
-      xaxis: { showspikes: true },
+      xaxis: { showspikes: true, tickmode: 'auto', nticks: 20 },
       hovermode: "x",
       autosize: true,
       title: title || "Performance Chart",
