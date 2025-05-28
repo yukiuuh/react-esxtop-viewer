@@ -24,7 +24,15 @@ const computeEsxtopFieldTree = (fields: string[]) => {
       .filter((segment) => segment.length > 0);
     const segmentsByFirstParensis = segmentsByBackSlash
       .map((seg) => {
-        if (seg.match("Average Packet Size")) {
+        if (
+          [
+            "Average Packet Size",
+            "Link Speed",
+            "Memory Overcommit",
+            "Cpu Load",
+            "Effective Min",
+          ].some((pattern) => seg.match(pattern))
+        ) {
           return seg;
         } else {
           return splitAtFirstParensis(seg);
@@ -38,9 +46,12 @@ const computeEsxtopFieldTree = (fields: string[]) => {
         if (category === "Vcpu") {
           return splitAtSecondColon(seg);
         } else if (
-          ["Virtual Disk", "Network Port", "Interrupt Cookie"].includes(
-            category,
-          )
+          [
+            "Virtual Disk",
+            "Network Port",
+            "Interrupt Cookie",
+            "Physical Disk",
+          ].includes(category)
         ) {
           return splitAtFirstColon(seg);
         } else {
