@@ -8,7 +8,7 @@ import { CdsDivider } from "@cds/react/divider";
 import { Datum } from "plotly.js";
 import { useRef, useState } from "react";
 import "./App.css";
-import { computeEsxtopFieldTree, EsxtopData } from "./esxtop";
+import { computeEsxtopFieldTree } from "./esxtop";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
 import LoadingOverlay from "./LoadingOverlay";
@@ -16,19 +16,21 @@ import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
-import { parseCSV } from "./utils";
+import { parseCSVv2, readCsvHeader, removeFirstLineFromCSV } from "./utils";
 import { CdsButton } from "@cds/react/button";
 
 const App: React.FC = () => {
-  const [esxtopData, setEsxtopData] = useState<EsxtopData[]>([]);
   const [selectedEsxtopDataIndex, setSelectedEsxtopDataIndex] = useState(0);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [fileStatus, setFileStatus] = useState<ControlStatus>("neutral");
   const [filterKeyword, setFilterKeyword] = useState("");
   const [splitPosition, setSplitPosition] = useState(20);
-  const metricField = esxtopData[selectedEsxtopDataIndex]?.metricField || [];
-  const metricData = esxtopData[selectedEsxtopDataIndex]?.metricData || [];
+  const [metricFields, setMetricFields] = useState<string[][]>([]);
+  const [metricFieldTrees, setMetricFieldTrees] = useState<TreeNode[]>([]);
+
+  const metricField = metricFields[selectedEsxtopDataIndex] || [];
+  const [metricData, setMetricData] = useState<Datum[][][]>([]);
   const performanceChartRef = useRef<PerformanceChartHandle>(null);
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
@@ -56,31 +58,28 @@ const App: React.FC = () => {
                 <div
                   cds-layout="horizontal"
                   style={{
-                    overflow: "hidden",
-                    width: "100vh",
+                    overflow: "clip",
+                    width: "80vw",
                   }}
                 >
                   <MultiFileMetricBrowser
                     loading={loading}
                     metricNodes={
                       filterKeyword
-                        ? esxtopData.map((d) => {
-                            const r = filterTree(
-                              d.metricFieldTree,
-                              filterKeyword,
-                            );
+                        ? metricFieldTrees.map((t) => {
+                            const r = filterTree(t, filterKeyword);
                             return r.children.length > 0
                               ? r
                               : {
-                                  id: d.metricFieldTree.id,
-                                  field_index: d.metricFieldTree.field_index,
+                                  id: t.id,
+                                  field_index: t.field_index,
                                   children: [],
                                 };
                           })
-                        : esxtopData.map((d) => d.metricFieldTree)
+                        : metricFieldTrees
                     }
                     onSelectedChange={(node, dataIndex) => {
-                      console.debug(node);
+                      console.debug("selected", node);
                       setSelectedNode(node);
                       setSelectedEsxtopDataIndex(dataIndex);
                     }}
@@ -92,7 +91,7 @@ const App: React.FC = () => {
                   ref={performanceChartRef}
                   splitPosition={splitPosition}
                   node={selectedNode}
-                  metricData={metricData}
+                  metricData={metricData[selectedEsxtopDataIndex] || []}
                   metricField={metricField}
                 />
               ) : (
@@ -111,32 +110,62 @@ const App: React.FC = () => {
                 loading={loading}
                 onChangeFiles={(f) => {
                   setFileStatus("neutral");
-                  if (f.length == 0) {
-                    setEsxtopData([]);
-                  } else {
+                  setMetricFields([]);
+                  setMetricFieldTrees([]);
+                  setMetricData([]);
+                  if (f.length > 0) {
                     setLoading(true);
                     Promise.all(
                       f.map(async (file) => {
-                        return new Promise<EsxtopData>((resolve, reject) => {
-                          parseCSV(file)
-                            .then((r) => {
-                              const field = (r.data[0] as string[]) || [];
-                              const metricData =
-                                (r.data.slice(1) as Datum[][]) || [];
-                              const fieldTree = computeEsxtopFieldTree(field);
-                              resolve({
-                                fileName: file.name,
-                                metricField: field,
-                                metricFieldTree: fieldTree,
-                                metricData: metricData,
-                              });
-                            })
-                            .catch(reject);
-                        });
+                        try {
+                          const fields = await readCsvHeader(
+                            file,
+                            (bytesRead) => {
+                              console.debug(
+                                `file ${file.name} header loading progress: ${bytesRead} bytes`,
+                              );
+                            },
+                          );
+                          console.debug(
+                            `computing field tree from ${file.name}`,
+                          );
+                          const fieldTree = computeEsxtopFieldTree(fields);
+                          const trimmedFile = await removeFirstLineFromCSV(
+                            file,
+                            (progress) => {
+                              console.debug(
+                                `file ${file.name} trim header line progress: ${progress}%`,
+                              );
+                            },
+                          );
+                          const csvData = await parseCSVv2(
+                            trimmedFile,
+                            false,
+                            (progress) => {
+                              console.debug(
+                                `file ${file.name} loading progress: ${progress}%`,
+                              );
+                            },
+                          );
+                          return {
+                            fileName: file.name,
+                            metricField: fields,
+                            metricFieldTree: fieldTree,
+                            metricData: csvData.data as Datum[][],
+                          };
+                        } catch (e) {
+                          console.error(
+                            `Error processing file ${file.name}:`,
+                            e,
+                          );
+                          throw e;
+                        }
                       }),
                     )
-                      .then((e) => {
-                        setEsxtopData([...e]);
+                      .then((res) => {
+                        setMetricFields(res.map((r) => r.metricField));
+                        setMetricFieldTrees(res.map((r) => r.metricFieldTree));
+                        setMetricData(res.map((r) => r.metricData));
                         setFileStatus("success");
                         setLoading(false);
                       })
