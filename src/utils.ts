@@ -134,7 +134,16 @@ export const parseCSVv2 = async (
         firstLineSkipped = true;
         continue;
       }
-      rows.push(line.replace(/\r$/, "").split(","));
+      rows.push(line.replace(/\r$/, "").split(",").map((str) => {
+        let unquoted
+        try {
+          unquoted = str.slice(1, -1)
+        } catch {
+          console.error(`failed to unquote ${str} in ${line}`)
+          unquoted = ""
+        }
+        return unquoted
+      }));
     }
   }
   if (buffer.length > 0 && firstLineSkipped) {
