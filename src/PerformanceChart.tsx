@@ -26,13 +26,32 @@ export interface PerformanceChartHandle {
 
 const chartDivId = "plotlyChart";
 
+// "nan"などの文字列をプロット可能なnullに変換し、数値をパースするヘルパー関数
+const sanitizeDatum = (datum: Datum): number | null => {
+  if (datum === null || datum === undefined) {
+    return null;
+  }
+  if (typeof datum === 'number') {
+    return isNaN(datum) ? null : datum;
+  }
+  if (typeof datum === 'string') {
+    // "nan" は大文字小文字を区別せずにチェック
+    if (datum.toLowerCase() === 'nan') {
+      return null;
+    }
+    const num = parseFloat(datum);
+    return isNaN(num) ? null : num;
+  }
+  // string, number, null 以外はプロットしない
+  return null;
+};
+
 const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
   (props, ref) => {
     const { node, metricData, metricField, splitPosition } = props;
     const selectedFieldIndex = node.field_index;
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
 
-    // useImperativeHandle を使って、親から呼び出せる関数を定義
     useImperativeHandle(ref, () => ({
       exportToImage() {
         Plotly.toImage(chartDivId, {
@@ -59,7 +78,6 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
       },
     }));
 
-    // splitPosition の変更時のみリサイズを実行
     useEffect(() => {
         Plotly.Plots.resize(chartDivId);
     }, [splitPosition]);
@@ -82,10 +100,7 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
           const data: Partial<PlotData> = {
             type: "scattergl",
             x: x,
-            y: metricData.map((d) => {
-              const _d = d as Datum[];
-              return _d[leafIndex];
-            }),
+            y: metricData.map((d) => sanitizeDatum((d as Datum[])[leafIndex])),
             name: leaf.id,
             marker: { symbol: "circle", opacity: 1, size: 5 },
             mode: "lines+markers",
@@ -93,10 +108,7 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
           return data;
         });
     } else {
-      const y = metricData.map((d) => {
-        const _d = d as Datum[];
-        return _d[selectedFieldIndex];
-      });
+      const y = metricData.map((d) => sanitizeDatum((d as Datum[])[selectedFieldIndex]));
 
       const data1: Partial<PlotData> = {
         type: "scattergl",
@@ -125,7 +137,6 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
       },
     };
 
-    // Plotly.react を使用して差分更新
     return (
       <Plot
         divId={chartDivId}
