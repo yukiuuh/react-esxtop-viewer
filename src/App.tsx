@@ -108,7 +108,7 @@ const App: React.FC = () => {
 
   return (
     <div className="main-container">
-      <Header onFilterKeywordChange={setFilterKeyword} />
+      <Header onFilterKeywordChange={setFilterKeyword} appVersion={import.meta.env.VITE_APP_VERSION} />
       <div cds-layout="horizontal align:stretch" style={{ height: "100%" }}>
         <div cds-layout="vertical align:stretch" style={{ height: "100%" }}>
           <div cds-layout="horizontal align:stretch gap:md wrap:none">

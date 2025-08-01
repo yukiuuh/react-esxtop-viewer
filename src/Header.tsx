@@ -4,6 +4,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 
 type Props = {
   onFilterKeywordChange?: (keyword: string) => void;
+  appVersion?: string;
 };
 
 const INPUT_DELAY_MSEC = 500;
@@ -26,7 +27,7 @@ const Header: React.FC<Props> = (props) => {
       <div className="branding">
         <a>
           <CdsIcon shape="line-chart" />
-          <span className="title">esxtop Viewer</span>
+          <span className="title">esxtop Viewer <span className="version p7" style={{ color: "var(--cds-alias-utility-gray)" }}>{props.appVersion}</span></span>
         </a>
       </div>
       <form
