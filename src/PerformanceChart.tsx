@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState, memo } from "react";
 import Plotly from "plotly.js-dist-min";
 import createPlotlyComponent from "react-plotly.js/factory";
 import { Datum, PlotData, Layout, Data } from "plotly.js";
@@ -25,17 +25,14 @@ export interface PerformanceChartHandle {
 }
 
 const chartDivId = "plotlyChart";
-const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
+
+const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
   (props, ref) => {
     const { node, metricData, metricField, splitPosition } = props;
     const selectedFieldIndex = node.field_index;
-    const [rendered, setRendered] = useState(false);
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
 
-    useEffect(() => {
-      if (rendered) Plotly.Plots.resize(chartDivId);
-    }, [props.node.id, rendered, splitPosition]);
-
+    // useImperativeHandle を使って、親から呼び出せる関数を定義
     useImperativeHandle(ref, () => ({
       exportToImage() {
         Plotly.toImage(chartDivId, {
@@ -61,6 +58,11 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
         });
       },
     }));
+
+    // splitPosition の変更時のみリサイズを実行
+    useEffect(() => {
+        Plotly.Plots.resize(chartDivId);
+    }, [splitPosition]);
 
     const x = metricData.map((d) => {
       const _d = d as string[];
@@ -122,11 +124,16 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
         family: "var(--cds-global-typography-font-family)",
       },
     };
+
+    // Plotly.react を使用して差分更新
     return (
       <Plot
-        onAfterPlot={() => {
-          setRendered(true);
-        }}
+        divId={chartDivId}
+        style={{ width: "100%", height: "100%" }}
+        data={selectedData as Data[]}
+        layout={layout}
+        config={{ responsive: true, modeBarButtonsToRemove: ["toImage"] }}
+        useResizeHandler
         onUpdate={(f) => {
           const nextLegendSettings = f.data?.map((d) => {
             /* @ts-expect-error d.visible */
@@ -136,15 +143,9 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
             setLegendSettings(nextLegendSettings)
           }
         }}
-        divId={chartDivId}
-        style={{ width: "100%", height: "100%" }}
-        data={selectedData as Data[]}
-        useResizeHandler
-        layout={layout}
-        config={{ responsive: true, modeBarButtonsToRemove: ["toImage"] }}
       />
     );
   },
-);
+));
 
 export default PerformanceChart;

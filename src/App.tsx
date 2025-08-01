@@ -4,11 +4,12 @@ import "@cds/core/global.css"; // pre-minified version breaks
 import "@cds/core/icon/register.js";
 import "@cds/core/internal-components/split-handle/register.js";
 import "@cds/core/styles/theme.dark.css"; // pre-minified version breaks
+import { CdsButton } from "@cds/react/button";
 import { CdsDivider } from "@cds/react/divider";
 import { Datum } from "plotly.js";
-import { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import "./App.css";
-import { computeEsxtopFieldTreeV2 } from "./esxtop";
+import { computeEsxtopFieldTreeV2, EsxtopData } from "./esxtop";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
 import LoadingOverlay from "./LoadingOverlay";
@@ -17,33 +18,97 @@ import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
 import { parseCSVv3, readCsvHeaderV2, removeFirstLineFromCSV } from "./utils";
-import { CdsButton } from "@cds/react/button";
 
 const App: React.FC = () => {
+  // 1. Stateの統合：関連するデータを一つのオブジェクト配列にまとめる
+  const [esxtopData, setEsxtopData] = useState<EsxtopData[]>([]);
   const [selectedEsxtopDataIndex, setSelectedEsxtopDataIndex] = useState(0);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [fileStatus, setFileStatus] = useState<ControlStatus>("neutral");
   const [filterKeyword, setFilterKeyword] = useState("");
   const [splitPosition, setSplitPosition] = useState(20);
-  const [metricFields, setMetricFields] = useState<string[][]>([]);
-  const [metricFieldTrees, setMetricFieldTrees] = useState<TreeNode[]>([]);
-  const [loadingMessage, setLoadingMessage] = useState("")
+  const [loadingMessage, setLoadingMessage] = useState("");
 
-  const metricField = metricFields[selectedEsxtopDataIndex] || [];
-  const [metricData, setMetricData] = useState<Datum[][][]>([]);
   const performanceChartRef = useRef<PerformanceChartHandle>(null);
+
+  // 2. 派生データのメモ化：esxtopDataやselectedEsxtopDataIndexが変更されたときだけ再計算
+  const currentMetricField = useMemo(
+    () => esxtopData[selectedEsxtopDataIndex]?.metricField || [],
+    [esxtopData, selectedEsxtopDataIndex]
+  );
+  const currentMetricData = useMemo(
+    () => esxtopData[selectedEsxtopDataIndex]?.metricData || [],
+    [esxtopData, selectedEsxtopDataIndex]
+  );
+
+  // 3. フィルタリングされたツリーのメモ化：esxtopDataかfilterKeywordが変更されたときだけ再計算
+  const filteredMetricFieldTrees = useMemo(() => {
+    if (!filterKeyword) {
+      return esxtopData.map((d) => d.metricFieldTree);
+    }
+    return esxtopData.map((d) => {
+      const filtered = filterTree(d.metricFieldTree, filterKeyword);
+      return filtered.children.length > 0
+        ? filtered
+        : { id: d.metricFieldTree.id, field_index: -1, children: [], path: "" };
+    });
+  }, [esxtopData, filterKeyword]);
+
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
   };
 
+  const handleFileChange = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    // State更新をまとめて行う
+    setEsxtopData([]);
+    setFileStatus("neutral");
+    setLoading(true);
+
+    try {
+      const results = await Promise.all(
+        files.map(async (file) => {
+          const fields = await readCsvHeaderV2(file, (bytesRead) => {
+            setLoadingMessage(`Loading header from ${file.name}: ${bytesRead} bytes`);
+          });
+
+          const fieldTree = await computeEsxtopFieldTreeV2(fields, (progress) => {
+            setLoadingMessage(`Computing field tree from ${file.name}: ${Math.trunc(progress)}%`);
+          });
+
+          const trimmedFile = await removeFirstLineFromCSV(file, (progress) => {
+            setLoadingMessage(`Trimming header from ${file.name}: ${Math.trunc(progress)}%`);
+          });
+
+          const csvData = await parseCSVv3(trimmedFile, false, (progress) => {
+            setLoadingMessage(`Parsing data from ${file.name}: ${Math.trunc(progress)}%`);
+          });
+
+          return {
+            fileName: file.name,
+            metricField: fields,
+            metricFieldTree: fieldTree,
+            metricData: csvData.data as Datum[][],
+          };
+        })
+      );
+      // 成功時に一度だけStateを更新
+      setEsxtopData(results);
+      setFileStatus("success");
+    } catch (e) {
+      console.error("File processing failed:", e);
+      setFileStatus("error");
+    } finally {
+      setLoading(false);
+      setLoadingMessage("");
+    }
+  };
+
   return (
     <div className="main-container">
-      <Header
-        onFilterKeywordChange={(s) => {
-          setFilterKeyword(s);
-        }}
-      />
+      <Header onFilterKeywordChange={setFilterKeyword} />
       <div cds-layout="horizontal align:stretch" style={{ height: "100%" }}>
         <div cds-layout="vertical align:stretch" style={{ height: "100%" }}>
           <div cds-layout="horizontal align:stretch gap:md wrap:none">
@@ -65,23 +130,8 @@ const App: React.FC = () => {
                 >
                   <MultiFileMetricBrowser
                     loading={loading}
-                    metricNodes={
-                      filterKeyword
-                        ? metricFieldTrees.map((t) => {
-                          const r = filterTree(t, filterKeyword);
-                          return r.children.length > 0
-                            ? r
-                            : {
-                              id: t.id,
-                              field_index: t.field_index,
-                              children: [],
-                              path: "",
-                            };
-                        })
-                        : metricFieldTrees
-                    }
+                    metricNodes={filteredMetricFieldTrees}
                     onSelectedChange={(node, dataIndex) => {
-                      console.debug("selected", node);
                       setSelectedNode(node);
                       setSelectedEsxtopDataIndex(dataIndex);
                     }}
@@ -93,8 +143,8 @@ const App: React.FC = () => {
                   ref={performanceChartRef}
                   splitPosition={splitPosition}
                   node={selectedNode}
-                  metricData={metricData[selectedEsxtopDataIndex] || []}
-                  metricField={metricField}
+                  metricData={currentMetricData}
+                  metricField={currentMetricField}
                 />
               ) : (
                 <></>
@@ -110,84 +160,14 @@ const App: React.FC = () => {
               <FileLoader
                 status={fileStatus}
                 loading={loading}
-                onChangeFiles={(f) => {
-                  setFileStatus("neutral");
-                  setMetricFields([]);
-                  setMetricFieldTrees([]);
-                  setMetricData([]);
-                  if (f.length > 0) {
-                    setLoading(true);
-                    Promise.all(
-                      f.map(async (file) => {
-                        try {
-                          const fields = await readCsvHeaderV2(
-                            file,
-                            (bytesRead) => {
-                              const msg = `File ${file.name} header loading progress: ${bytesRead} bytes`
-                              console.debug(msg)
-                              setLoadingMessage(msg)
-                            },
-                          );
-
-                          const fieldTree = await computeEsxtopFieldTreeV2(fields, (progress) => {
-                            const msg = `Computing field tree from ${file.name} progress: ${Math.trunc(progress)}%`
-                            console.debug(msg);
-                            setLoadingMessage(msg)
-                          });
-                          const trimmedFile = await removeFirstLineFromCSV(
-                            file,
-                            (progress) => {
-                              const msg = `File ${file.name} trim header line progress: ${Math.trunc(progress)}%`
-                              console.debug(msg)
-                              setLoadingMessage(msg)
-                            },
-                          );
-                          const csvData = await parseCSVv3(
-                            trimmedFile,
-                            false,
-                            (progress) => {
-                              const msg = `Loading data from ${file.name} progress: ${Math.trunc(progress)}%`
-                              console.debug(msg)
-                              setLoadingMessage(msg)
-                            },
-                          );
-                          return {
-                            fileName: file.name,
-                            metricField: fields,
-                            metricFieldTree: fieldTree,
-                            metricData: csvData.data as Datum[][],
-                          };
-                        } catch (e) {
-                          console.error(
-                            `Error processing file ${file.name}:`,
-                            e,
-                          );
-                          throw e;
-                        }
-                      }),
-                    )
-                      .then((res) => {
-                        setMetricFields(res.map((r) => r.metricField));
-                        setMetricFieldTrees(res.map((r) => r.metricFieldTree));
-                        setMetricData(res.map((r) => r.metricData));
-                        setFileStatus("success");
-                        setLoading(false);
-                      })
-                      .catch((e) => {
-                        console.error("file loading failed", e);
-                        setFileStatus("error");
-                      });
-                  }
-                }}
+                onChangeFiles={handleFileChange}
               />
               <CdsButton
                 cds-layout="align:right"
                 action="outline"
                 size="sm"
                 disabled={!selectedNode}
-                onClick={() => {
-                  handleExportToImage();
-                }}
+                onClick={handleExportToImage}
               >
                 EXPORT
               </CdsButton>

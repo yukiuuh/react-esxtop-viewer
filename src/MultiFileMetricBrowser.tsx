@@ -1,5 +1,5 @@
 import { CdsTree, CdsTreeItem } from "@cds/react/tree-view";
-import React, { useState } from "react";
+import React, { useState, memo, useEffect } from "react";
 import { TreeNode } from "./TreeNode";
 
 type Props = {
@@ -12,6 +12,7 @@ type MetricProps = {
   onSelectedChange?: (node: TreeNode) => void;
   selectedNodePath: string;
 };
+
 const MultiFileMetricBrowser: React.FC<Props> = (props) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const metricNodes = props.metricNodes;
@@ -22,11 +23,7 @@ const MultiFileMetricBrowser: React.FC<Props> = (props) => {
         <></>
       ) : (
           <div cds-layout="wrap:none" style={{width: "stretch"}}>
-          <CdsTree
-            onSelectCapture={(e) => {
-              console.debug("onSelectCapture", e);
-            }}
-          >
+          <CdsTree>
             <CdsTreeItem
               onExpandedChange={() => {
                 setIsExpanded(!isExpanded);
@@ -60,51 +57,94 @@ const MultiFileMetricBrowser: React.FC<Props> = (props) => {
   );
 };
 
-const Metric: React.FC<MetricProps> = (props) => {
-  const { selectedNodePath } = props
+const Metric: React.FC<MetricProps> = memo((props) => {
+  const { selectedNodePath, node, onSelectedChange } = props;
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
-  if (props.node.children.length > 0) {
+  const [renderedChildren, setRenderedChildren] = useState<TreeNode[]>([]);
+  const [isLoadingChildren, setIsLoadingChildren] = useState<boolean>(false);
+
+  const BATCH_SIZE = 50; // 一度にレンダリングするアイテム数
+
+  useEffect(() => {
+    // このeffectがキャンセルされたかどうかを追跡するフラグ
+    let isCancelled = false;
+
+    if (isExpanded) {
+      // 展開が開始されたら、まず既存の子をクリアし、ローディング状態にする
+      setRenderedChildren([]);
+      setIsLoadingChildren(true);
+      let currentIndex = 0;
+
+      const renderBatch = () => {
+        // この処理がキャンセルされていたら、何もせずに終了
+        if (isCancelled) {
+          return;
+        }
+
+        const nextBatch = node.children.slice(currentIndex, currentIndex + BATCH_SIZE);
+        if (nextBatch.length > 0) {
+          setRenderedChildren(prev => [...prev, ...nextBatch]);
+          currentIndex += BATCH_SIZE;
+          setTimeout(renderBatch, 0);
+        } else {
+          setIsLoadingChildren(false);
+        }
+      };
+
+      renderBatch();
+    } else {
+      // 閉じられたら、状態をリセット
+      setRenderedChildren([]);
+      setIsLoadingChildren(false);
+    }
+
+    // クリーンアップ関数
+    return () => {
+      isCancelled = true;
+    };
+  }, [isExpanded, node.children]); // node.childrenも依存配列に含め、データソースが変わった場合にも対応
+
+  if (node.children.length > 0) {
     return (
       <CdsTreeItem
         expandable
-        key={props.node.id}
+        loading={isLoadingChildren}
+        key={node.id}
         expanded={isExpanded}
-        selected={selectedNodePath == props.node.path}
+        selected={selectedNodePath == node.path}
         onSelectedChange={() => {
-          props.onSelectedChange && props.onSelectedChange(props.node);
+          onSelectedChange && onSelectedChange(node);
         }}
         onExpandedChange={() => {
           setIsExpanded(!isExpanded);
         }}
       >
-        {props.node.id}
-        {isExpanded &&
-          props.node.children.map((child) => {
-            return (
-              <Metric
-                key={child.id}
-                node={child}
-                selectedNodePath={selectedNodePath}
-                onSelectedChange={props.onSelectedChange}
-              />
-            );
-          })}
+        {node.id}
+        {renderedChildren.map((child) => (
+          <Metric
+            key={child.id}
+            node={child}
+            selectedNodePath={selectedNodePath}
+            onSelectedChange={onSelectedChange}
+          />
+        ))}
+        {isLoadingChildren && <CdsTreeItem disabled>Loading...</CdsTreeItem>}
       </CdsTreeItem>
     );
   } else {
     return (
       <CdsTreeItem
-        expandable={props.node.children.length > 0}
-        selected={selectedNodePath == props.node.path}
-        key={props.node.id}
+        expandable={false}
+        selected={selectedNodePath == node.path}
+        key={node.id}
         onSelectedChange={() => {
-          props.onSelectedChange && props.onSelectedChange(props.node);
+          onSelectedChange && onSelectedChange(node);
         }}
       >
-        {props.node.id}
+        {node.id}
       </CdsTreeItem>
     );
   }
-};
+});
 
 export default MultiFileMetricBrowser;
