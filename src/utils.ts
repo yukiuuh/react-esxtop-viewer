@@ -222,3 +222,35 @@ const isTauri = () => {
 };
 
 export { analysisFields, isTauri };
+
+export const readCsvHeaderV2 = async (
+  file: File,
+  onRead?: (bytesRead: number) => void,
+): Promise<string[]> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./headerReader.worker.ts', import.meta.url), {
+      type: 'module'
+    });
+
+    worker.onmessage = (e) => {
+      if (e.data.type === 'progress') {
+        if (onRead) {
+          onRead(e.data.data);
+        }
+      } else if (e.data.type === 'done') {
+        resolve(e.data.data);
+        worker.terminate();
+      } else if (e.data.type === 'error') {
+        reject(new Error(e.data.data));
+        worker.terminate();
+      }
+    };
+
+    worker.onerror = (e) => {
+      reject(e);
+      worker.terminate();
+    };
+
+    worker.postMessage({ file });
+  });
+};

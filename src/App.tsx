@@ -16,7 +16,7 @@ import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
-import { parseCSVv3, readCsvHeader, removeFirstLineFromCSV } from "./utils";
+import { parseCSVv3, readCsvHeaderV2, removeFirstLineFromCSV } from "./utils";
 import { CdsButton } from "@cds/react/button";
 
 const App: React.FC = () => {
@@ -120,7 +120,7 @@ const App: React.FC = () => {
                     Promise.all(
                       f.map(async (file) => {
                         try {
-                          const fields = await readCsvHeader(
+                          const fields = await readCsvHeaderV2(
                             file,
                             (bytesRead) => {
                               const msg = `file ${file.name} header loading progress: ${bytesRead} bytes`
@@ -128,9 +128,9 @@ const App: React.FC = () => {
                               setLoadingMessage(msg)
                             },
                           );
-                          console.debug(
-                            `computing field tree from ${file.name}`,
-                          );
+                          const msg = `computing field tree from ${file.name}`
+                          console.debug(msg);
+                          setLoadingMessage(msg)
                           const fieldTree = computeEsxtopFieldTree(fields);
                           const trimmedFile = await removeFirstLineFromCSV(
                             file,
