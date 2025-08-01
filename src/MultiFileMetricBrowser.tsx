@@ -16,13 +16,13 @@ type MetricProps = {
 const MultiFileMetricBrowser: React.FC<Props> = (props) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const metricNodes = props.metricNodes;
-  const [selectedNodePath, setSelectedNodePath] = useState<string>("")
+  const [selectedNodePath, setSelectedNodePath] = useState<string>("");
   return (
     <>
       {props.loading ? (
         <></>
       ) : (
-          <div cds-layout="wrap:none" style={{width: "stretch"}}>
+        <div cds-layout="wrap:none" style={{ width: "stretch" }}>
           <CdsTree>
             <CdsTreeItem
               onExpandedChange={() => {
@@ -44,7 +44,7 @@ const MultiFileMetricBrowser: React.FC<Props> = (props) => {
                       onSelectedChange={(node) => {
                         props.onSelectedChange &&
                           props.onSelectedChange(node, index);
-                        setSelectedNodePath(node.path)
+                        setSelectedNodePath(node.path);
                       }}
                     />
                   ) : null; // when search result is empty
@@ -81,9 +81,12 @@ const Metric: React.FC<MetricProps> = memo((props) => {
           return;
         }
 
-        const nextBatch = node.children.slice(currentIndex, currentIndex + BATCH_SIZE);
+        const nextBatch = node.children.slice(
+          currentIndex,
+          currentIndex + BATCH_SIZE,
+        );
         if (nextBatch.length > 0) {
-          setRenderedChildren(prev => [...prev, ...nextBatch]);
+          setRenderedChildren((prev) => [...prev, ...nextBatch]);
           currentIndex += BATCH_SIZE;
           setTimeout(renderBatch, 0);
         } else {

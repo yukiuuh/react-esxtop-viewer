@@ -70,7 +70,7 @@ const computeEsxtopFieldTree = (fields: string[]) => {
           id: segment,
           field_index: segment_index + 1 == segments.length ? field_index : -1,
           children: [],
-          path: segments.slice(0, segment_index + 1).join(' > '),
+          path: segments.slice(0, segment_index + 1).join(" > "),
         };
         currentNode.children = currentNode.children || [];
         currentNode.children.push(childNode);
@@ -87,16 +87,19 @@ export const computeEsxtopFieldTreeV2 = (
   onProgress?: (percent: number) => void,
 ): Promise<TreeNode> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL("./fieldTree.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    const worker = new Worker(
+      new URL("./fieldTree.worker.ts", import.meta.url),
+      {
+        type: "module",
+      },
+    );
 
     worker.onmessage = (e) => {
-      if (e.data.type === 'progress') {
+      if (e.data.type === "progress") {
         if (onProgress) {
           onProgress(e.data.data);
         }
-      } else if (e.data.type === 'done') {
+      } else if (e.data.type === "done") {
         resolve(e.data.data);
         worker.terminate();
       }

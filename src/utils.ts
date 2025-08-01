@@ -134,16 +134,21 @@ export const parseCSVv2 = async (
         firstLineSkipped = true;
         continue;
       }
-      rows.push(line.replace(/\r$/, "").split(",").map((str) => {
-        let unquoted
-        try {
-          unquoted = str.slice(1, -1)
-        } catch {
-          console.error(`failed to unquote ${str} in ${line}`)
-          unquoted = ""
-        }
-        return unquoted
-      }));
+      rows.push(
+        line
+          .replace(/\r$/, "")
+          .split(",")
+          .map((str) => {
+            let unquoted;
+            try {
+              unquoted = str.slice(1, -1);
+            } catch {
+              console.error(`failed to unquote ${str} in ${line}`);
+              unquoted = "";
+            }
+            return unquoted;
+          }),
+      );
     }
   }
   if (buffer.length > 0 && firstLineSkipped) {
@@ -158,20 +163,23 @@ export const parseCSVv3 = async (
   onProgress?: (percent: number) => void,
 ): Promise<{ data: string[][] }> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./csvParser.worker.ts', import.meta.url), {
-      type: 'module'
-    });
+    const worker = new Worker(
+      new URL("./csvParser.worker.ts", import.meta.url),
+      {
+        type: "module",
+      },
+    );
 
     const allRows: string[][] = [];
 
     worker.onmessage = (e) => {
-      if (e.data.type === 'progress') {
+      if (e.data.type === "progress") {
         if (onProgress) {
           onProgress(e.data.data);
         }
-      } else if (e.data.type === 'chunk') {
+      } else if (e.data.type === "chunk") {
         allRows.push(...e.data.data);
-      } else if (e.data.type === 'done') {
+      } else if (e.data.type === "done") {
         resolve({ data: allRows });
         worker.terminate();
       }
@@ -232,19 +240,22 @@ export const readCsvHeaderV2 = async (
   onRead?: (bytesRead: number) => void,
 ): Promise<string[]> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./headerReader.worker.ts', import.meta.url), {
-      type: 'module'
-    });
+    const worker = new Worker(
+      new URL("./headerReader.worker.ts", import.meta.url),
+      {
+        type: "module",
+      },
+    );
 
     worker.onmessage = (e) => {
-      if (e.data.type === 'progress') {
+      if (e.data.type === "progress") {
         if (onRead) {
           onRead(e.data.data);
         }
-      } else if (e.data.type === 'done') {
+      } else if (e.data.type === "done") {
         resolve(e.data.data);
         worker.terminate();
-      } else if (e.data.type === 'error') {
+      } else if (e.data.type === "error") {
         reject(new Error(e.data.data));
         worker.terminate();
       }

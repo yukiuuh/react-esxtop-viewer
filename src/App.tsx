@@ -35,11 +35,11 @@ const App: React.FC = () => {
   // 2. 派生データのメモ化：esxtopDataやselectedEsxtopDataIndexが変更されたときだけ再計算
   const currentMetricField = useMemo(
     () => esxtopData[selectedEsxtopDataIndex]?.metricField || [],
-    [esxtopData, selectedEsxtopDataIndex]
+    [esxtopData, selectedEsxtopDataIndex],
   );
   const currentMetricData = useMemo(
     () => esxtopData[selectedEsxtopDataIndex]?.metricData || [],
-    [esxtopData, selectedEsxtopDataIndex]
+    [esxtopData, selectedEsxtopDataIndex],
   );
 
   // 3. フィルタリングされたツリーのメモ化：esxtopDataかfilterKeywordが変更されたときだけ再計算
@@ -71,19 +71,30 @@ const App: React.FC = () => {
       const results = await Promise.all(
         files.map(async (file) => {
           const fields = await readCsvHeaderV2(file, (bytesRead) => {
-            setLoadingMessage(`Loading header from ${file.name}: ${bytesRead} bytes`);
+            setLoadingMessage(
+              `Loading header from ${file.name}: ${bytesRead} bytes`,
+            );
           });
 
-          const fieldTree = await computeEsxtopFieldTreeV2(fields, (progress) => {
-            setLoadingMessage(`Computing field tree from ${file.name}: ${Math.trunc(progress)}%`);
-          });
+          const fieldTree = await computeEsxtopFieldTreeV2(
+            fields,
+            (progress) => {
+              setLoadingMessage(
+                `Computing field tree from ${file.name}: ${Math.trunc(progress)}%`,
+              );
+            },
+          );
 
           const trimmedFile = await removeFirstLineFromCSV(file, (progress) => {
-            setLoadingMessage(`Trimming header from ${file.name}: ${Math.trunc(progress)}%`);
+            setLoadingMessage(
+              `Trimming header from ${file.name}: ${Math.trunc(progress)}%`,
+            );
           });
 
           const csvData = await parseCSVv3(trimmedFile, false, (progress) => {
-            setLoadingMessage(`Parsing data from ${file.name}: ${Math.trunc(progress)}%`);
+            setLoadingMessage(
+              `Parsing data from ${file.name}: ${Math.trunc(progress)}%`,
+            );
           });
 
           return {
@@ -92,7 +103,7 @@ const App: React.FC = () => {
             metricFieldTree: fieldTree,
             metricData: csvData.data as Datum[][],
           };
-        })
+        }),
       );
       // 成功時に一度だけStateを更新
       setEsxtopData(results);
@@ -108,7 +119,10 @@ const App: React.FC = () => {
 
   return (
     <div className="main-container">
-      <Header onFilterKeywordChange={setFilterKeyword} appVersion={import.meta.env.VITE_APP_VERSION} />
+      <Header
+        onFilterKeywordChange={setFilterKeyword}
+        appVersion={import.meta.env.VITE_APP_VERSION}
+      />
       <div cds-layout="horizontal align:stretch" style={{ height: "100%" }}>
         <div cds-layout="vertical align:stretch" style={{ height: "100%" }}>
           <div cds-layout="horizontal align:stretch gap:md wrap:none">

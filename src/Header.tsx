@@ -27,7 +27,15 @@ const Header: React.FC<Props> = (props) => {
       <div className="branding">
         <a>
           <CdsIcon shape="line-chart" />
-          <span className="title">esxtop Viewer <span className="version p7" style={{ color: "var(--cds-alias-utility-gray)" }}>{props.appVersion}</span></span>
+          <span className="title">
+            esxtop Viewer{" "}
+            <span
+              className="version p7"
+              style={{ color: "var(--cds-alias-utility-gray)" }}
+            >
+              {props.appVersion}
+            </span>
+          </span>
         </a>
       </div>
       <form

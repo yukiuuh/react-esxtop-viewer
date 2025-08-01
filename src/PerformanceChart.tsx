@@ -1,4 +1,10 @@
-import { forwardRef, useEffect, useImperativeHandle, useState, memo } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useState,
+  memo,
+} from "react";
 import Plotly from "plotly.js-dist-min";
 import createPlotlyComponent from "react-plotly.js/factory";
 import { Datum, PlotData, Layout, Data } from "plotly.js";
@@ -9,9 +15,9 @@ import { writeBinaryFile } from "@tauri-apps/api/fs";
 const Plot = createPlotlyComponent(Plotly);
 
 export type LegendSetting = {
-  name: string
-  visible: boolean
-}
+  name: string;
+  visible: boolean;
+};
 
 type Props = {
   node: TreeNode;
@@ -31,12 +37,12 @@ const sanitizeDatum = (datum: Datum): number | null => {
   if (datum === null || datum === undefined) {
     return null;
   }
-  if (typeof datum === 'number') {
+  if (typeof datum === "number") {
     return isNaN(datum) ? null : datum;
   }
-  if (typeof datum === 'string') {
+  if (typeof datum === "string") {
     // "nan" は大文字小文字を区別せずにチェック
-    if (datum.toLowerCase() === 'nan') {
+    if (datum.toLowerCase() === "nan") {
       return null;
     }
     const num = parseFloat(datum);
@@ -46,8 +52,8 @@ const sanitizeDatum = (datum: Datum): number | null => {
   return null;
 };
 
-const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
-  (props, ref) => {
+const PerformanceChart = memo(
+  forwardRef<PerformanceChartHandle, Props>((props, ref) => {
     const { node, metricData, metricField, splitPosition } = props;
     const selectedFieldIndex = node.field_index;
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
@@ -79,7 +85,7 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
     }));
 
     useEffect(() => {
-        Plotly.Plots.resize(chartDivId);
+      Plotly.Plots.resize(chartDivId);
     }, [splitPosition]);
 
     const x = metricData.map((d) => {
@@ -108,7 +114,9 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
           return data;
         });
     } else {
-      const y = metricData.map((d) => sanitizeDatum((d as Datum[])[selectedFieldIndex]));
+      const y = metricData.map((d) =>
+        sanitizeDatum((d as Datum[])[selectedFieldIndex]),
+      );
 
       const data1: Partial<PlotData> = {
         type: "scattergl",
@@ -119,13 +127,13 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
       };
       allData = [data1];
     }
-    const selectedData = allData.map(d => {
-      const visible = legendSettings.find(s => s.name == d.name)?.visible
-      return ({
+    const selectedData = allData.map((d) => {
+      const visible = legendSettings.find((s) => s.name == d.name)?.visible;
+      return {
         ...d,
-        visible: (visible || (visible == undefined)) ? true : "legendonly"
-      })
-    })
+        visible: visible || visible == undefined ? true : "legendonly",
+      };
+    });
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
       xaxis: { showspikes: true, tickmode: "auto", nticks: 20 },
@@ -146,17 +154,23 @@ const PerformanceChart = memo(forwardRef<PerformanceChartHandle, Props>(
         config={{ responsive: true, modeBarButtonsToRemove: ["toImage"] }}
         useResizeHandler
         onUpdate={(f) => {
-          const nextLegendSettings = f.data?.map((d) => {
-            /* @ts-expect-error d.visible */
-            return { name: d.name || "", visible: d.visible == undefined || d.visible == true }
-          }) || []
-          if (JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)) {
-            setLegendSettings(nextLegendSettings)
+          const nextLegendSettings =
+            f.data?.map((d) => {
+              return {
+                name: d.name || "",
+                /* @ts-expect-error d.visible */
+                visible: d.visible == undefined || d.visible == true,
+              };
+            }) || [];
+          if (
+            JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)
+          ) {
+            setLegendSettings(nextLegendSettings);
           }
         }}
       />
     );
-  },
-));
+  }),
+);
 
 export default PerformanceChart;

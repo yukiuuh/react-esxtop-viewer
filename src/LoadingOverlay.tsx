@@ -12,7 +12,9 @@ const LoadingOverlay: React.FC<Props> = (props) => {
     <CdsInternalOverlay hidden={!loading}>
       <div cds-layout="vertical align:horizontal-center gap:md">
         <CdsProgressCircle size="xl" status="info" />
-        <p cds-text="title" color="var(--cds-global-typography-neutral-hover)">{message}</p>
+        <p cds-text="title" color="var(--cds-global-typography-neutral-hover)">
+          {message}
+        </p>
       </div>
     </CdsInternalOverlay>
   );
