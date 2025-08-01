@@ -67,7 +67,7 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
       return _d[0];
     });
     const title =
-      selectedFieldIndex < 0 ? node.id : metricField[selectedFieldIndex];
+      selectedFieldIndex < 0 ? node.path : metricField[selectedFieldIndex];
     let allData: Partial<PlotData>[];
 
     if (selectedFieldIndex < 0) {

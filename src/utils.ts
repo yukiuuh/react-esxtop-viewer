@@ -159,6 +159,7 @@ const analysisFields = (fields: string[]) => {
     id: "root",
     field_index: -1,
     children: [],
+    path: "",
   };
   fields.forEach((field, field_index) => {
     if (field_index < ignoreFieldNum) return;
@@ -172,6 +173,7 @@ const analysisFields = (fields: string[]) => {
           id: segment,
           field_index: segment_index + 1 == segments.length ? field_index : -1,
           children: [],
+          path: "",
         };
         currentNode.children = currentNode.children || [];
         currentNode.children.push(childNode);

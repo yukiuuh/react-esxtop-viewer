@@ -10,16 +10,18 @@ type Props = {
 type MetricProps = {
   node: TreeNode;
   onSelectedChange?: (node: TreeNode) => void;
+  selectedNodePath: string;
 };
 const MultiFileMetricBrowser: React.FC<Props> = (props) => {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const metricNodes = props.metricNodes;
+  const [selectedNodePath, setSelectedNodePath] = useState<string>("")
   return (
     <>
       {props.loading ? (
         <></>
       ) : (
-        <div cds-layout="wrap:none">
+          <div cds-layout="wrap:none" style={{width: "stretch"}}>
           <CdsTree
             onSelectCapture={(e) => {
               console.debug("onSelectCapture", e);
@@ -41,9 +43,11 @@ const MultiFileMetricBrowser: React.FC<Props> = (props) => {
                     <Metric
                       key={child.id + " " + index}
                       node={child}
+                      selectedNodePath={selectedNodePath}
                       onSelectedChange={(node) => {
                         props.onSelectedChange &&
                           props.onSelectedChange(node, index);
+                        setSelectedNodePath(node.path)
                       }}
                     />
                   ) : null; // when search result is empty
@@ -57,6 +61,7 @@ const MultiFileMetricBrowser: React.FC<Props> = (props) => {
 };
 
 const Metric: React.FC<MetricProps> = (props) => {
+  const { selectedNodePath } = props
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   if (props.node.children.length > 0) {
     return (
@@ -64,6 +69,7 @@ const Metric: React.FC<MetricProps> = (props) => {
         expandable
         key={props.node.id}
         expanded={isExpanded}
+        selected={selectedNodePath == props.node.path}
         onSelectedChange={() => {
           props.onSelectedChange && props.onSelectedChange(props.node);
         }}
@@ -78,6 +84,7 @@ const Metric: React.FC<MetricProps> = (props) => {
               <Metric
                 key={child.id}
                 node={child}
+                selectedNodePath={selectedNodePath}
                 onSelectedChange={props.onSelectedChange}
               />
             );
@@ -88,6 +95,7 @@ const Metric: React.FC<MetricProps> = (props) => {
     return (
       <CdsTreeItem
         expandable={props.node.children.length > 0}
+        selected={selectedNodePath == props.node.path}
         key={props.node.id}
         onSelectedChange={() => {
           props.onSelectedChange && props.onSelectedChange(props.node);

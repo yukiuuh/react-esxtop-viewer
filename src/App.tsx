@@ -67,15 +67,16 @@ const App: React.FC = () => {
                     metricNodes={
                       filterKeyword
                         ? metricFieldTrees.map((t) => {
-                            const r = filterTree(t, filterKeyword);
-                            return r.children.length > 0
-                              ? r
-                              : {
-                                  id: t.id,
-                                  field_index: t.field_index,
-                                  children: [],
-                                };
-                          })
+                          const r = filterTree(t, filterKeyword);
+                          return r.children.length > 0
+                            ? r
+                            : {
+                              id: t.id,
+                              field_index: t.field_index,
+                              children: [],
+                              path: "",
+                            };
+                        })
                         : metricFieldTrees
                     }
                     onSelectedChange={(node, dataIndex) => {

@@ -2,6 +2,7 @@ export interface TreeNode {
   id: string;
   field_index: number;
   children: TreeNode[];
+  path: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -10,6 +11,7 @@ const deepCopy = (node: TreeNode): TreeNode => {
     id: node.id,
     field_index: node.field_index,
     children: (node.children || []).map((x) => deepCopy(x)),
+    path: node.path,
   };
 };
 
@@ -28,6 +30,7 @@ const filterTree = (tree: TreeNode, filterString?: string): TreeNode => {
     id: tree.id,
     field_index: tree.field_index,
     children: [],
+    path: "",
   };
 
   if (tree.children) {

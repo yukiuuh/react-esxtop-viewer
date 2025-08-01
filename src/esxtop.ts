@@ -15,6 +15,7 @@ const computeEsxtopFieldTree = (fields: string[]) => {
     id: "root",
     field_index: -1,
     children: [],
+    path: "",
   };
   fields.forEach((field, field_index) => {
     if (!field) return;
@@ -69,6 +70,7 @@ const computeEsxtopFieldTree = (fields: string[]) => {
           id: segment,
           field_index: segment_index + 1 == segments.length ? field_index : -1,
           children: [],
+          path: segments.slice(0, segment_index + 1).join(' > '),
         };
         currentNode.children = currentNode.children || [];
         currentNode.children.push(childNode);
