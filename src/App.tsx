@@ -60,7 +60,12 @@ const App: React.FC = () => {
   };
 
   const handleFileChange = async (files: File[]) => {
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      setEsxtopData([]);
+      setFileStatus("neutral");
+      setLoading(false);
+      return;
+    }
 
     // State更新をまとめて行う
     setEsxtopData([]);
