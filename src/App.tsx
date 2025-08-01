@@ -8,7 +8,7 @@ import { CdsDivider } from "@cds/react/divider";
 import { Datum } from "plotly.js";
 import { useRef, useState } from "react";
 import "./App.css";
-import { computeEsxtopFieldTree } from "./esxtop";
+import { computeEsxtopFieldTreeV2 } from "./esxtop";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
 import LoadingOverlay from "./LoadingOverlay";
@@ -123,19 +123,21 @@ const App: React.FC = () => {
                           const fields = await readCsvHeaderV2(
                             file,
                             (bytesRead) => {
-                              const msg = `file ${file.name} header loading progress: ${bytesRead} bytes`
+                              const msg = `File ${file.name} header loading progress: ${bytesRead} bytes`
                               console.debug(msg)
                               setLoadingMessage(msg)
                             },
                           );
-                          const msg = `computing field tree from ${file.name}`
-                          console.debug(msg);
-                          setLoadingMessage(msg)
-                          const fieldTree = computeEsxtopFieldTree(fields);
+
+                          const fieldTree = await computeEsxtopFieldTreeV2(fields, (progress) => {
+                            const msg = `Computing field tree from ${file.name} progress: ${Math.trunc(progress)}%`
+                            console.debug(msg);
+                            setLoadingMessage(msg)
+                          });
                           const trimmedFile = await removeFirstLineFromCSV(
                             file,
                             (progress) => {
-                              const msg = `file ${file.name} trim header line progress: ${Math.trunc(progress)}%`
+                              const msg = `File ${file.name} trim header line progress: ${Math.trunc(progress)}%`
                               console.debug(msg)
                               setLoadingMessage(msg)
                             },
@@ -144,7 +146,7 @@ const App: React.FC = () => {
                             trimmedFile,
                             false,
                             (progress) => {
-                              const msg = `file ${file.name} loading progress: ${Math.trunc(progress)}%`
+                              const msg = `Loading data from ${file.name} progress: ${Math.trunc(progress)}%`
                               console.debug(msg)
                               setLoadingMessage(msg)
                             },

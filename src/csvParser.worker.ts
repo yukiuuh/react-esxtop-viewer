@@ -2,10 +2,35 @@ self.onmessage = async (e) => {
     const { file, skipFirstRow } = e.data;
     const reader = file.stream().getReader();
     const decoder = new TextDecoder();
-    let buffer = ""; const rows = [];
+    let buffer = "";
+    let rows: string[][] = []; // This will now be a batch
+    const batchSize = 1000; // Send data in chunks of 1000 rows
     let firstLineSkipped = !skipFirstRow;
     let loaded = 0;
     const total = file.size;
+
+    const processLine = (line: string) => {
+        if (!firstLineSkipped) {
+            firstLineSkipped = true;
+            return;
+        }
+        rows.push(line.replace(/\r$/, "").split(",").map((str) => {
+            let unquoted;
+            try {
+                unquoted = str.slice(1, -1);
+            } catch {
+                console.error(`failed to unquote ${str} in ${line}`);
+                unquoted = "";
+            }
+            return unquoted;
+        }));
+
+        if (rows.length >= batchSize) {
+            self.postMessage({ type: 'chunk', data: rows });
+            rows = []; // Reset the batch
+        }
+    };
+
     // eslint-disable-next-line no-constant-condition
     while (true) {
         const { done, value } = await reader.read();
@@ -20,35 +45,19 @@ self.onmessage = async (e) => {
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
         for (const line of lines) {
-            if (!firstLineSkipped) {
-                firstLineSkipped = true;
-                continue;
-            }
-            rows.push(line.replace(/\r$/, "").split(",").map((str) => {
-                let unquoted;
-                try {
-                    unquoted = str.slice(1, -1);
-                } catch {
-                    console.error(`failed to unquote ${str} in ${line}`);
-                    unquoted = "";
-                }
-                return unquoted;
-            }));
+            processLine(line);
         }
     }
-    if (buffer.length > 0 && firstLineSkipped) {
-        rows.push(buffer.replace(/\r$/, "").split(",").map((str) => {
-            let unquoted;
-            try {
-                unquoted = str.slice(1, -1);
-            } catch {
-                unquoted = "";
-            }
-            return unquoted;
-        }));
+
+    if (buffer.length > 0) {
+        processLine(buffer);
     }
-    self.postMessage({
-        type: 'done', data: { data: rows }
-    });
+
+    // Send any remaining rows
+    if (rows.length > 0) {
+        self.postMessage({ type: 'chunk', data: rows });
+    }
+
+    self.postMessage({ type: 'done' }); // Signal completion
     self.close();
 };

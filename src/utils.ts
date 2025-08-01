@@ -162,13 +162,17 @@ export const parseCSVv3 = async (
       type: 'module'
     });
 
+    const allRows: string[][] = [];
+
     worker.onmessage = (e) => {
       if (e.data.type === 'progress') {
         if (onProgress) {
           onProgress(e.data.data);
         }
+      } else if (e.data.type === 'chunk') {
+        allRows.push(...e.data.data);
       } else if (e.data.type === 'done') {
-        resolve(e.data.data);
+        resolve({ data: allRows });
         worker.terminate();
       }
     };
