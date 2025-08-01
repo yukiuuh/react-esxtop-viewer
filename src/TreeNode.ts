@@ -30,7 +30,7 @@ const filterTree = (tree: TreeNode, filterString?: string): TreeNode => {
     id: tree.id,
     field_index: tree.field_index,
     children: [],
-    path: "",
+    path: tree.path,
   };
 
   if (tree.children) {
