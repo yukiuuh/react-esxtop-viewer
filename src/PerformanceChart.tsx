@@ -1,12 +1,17 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import Plotly from "plotly.js-dist-min";
 import createPlotlyComponent from "react-plotly.js/factory";
-import { Datum, PlotData, Layout } from "plotly.js";
+import { Datum, PlotData, Layout, Data } from "plotly.js";
 import { TreeNode } from "./TreeNode";
 import { isTauri } from "./utils";
 import { save } from "@tauri-apps/api/dialog";
 import { writeBinaryFile } from "@tauri-apps/api/fs";
 const Plot = createPlotlyComponent(Plotly);
+
+export type LegendSetting = {
+  name: string
+  visible: boolean
+}
 
 type Props = {
   node: TreeNode;
@@ -25,6 +30,8 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
     const { node, metricData, metricField, splitPosition } = props;
     const selectedFieldIndex = node.field_index;
     const [rendered, setRendered] = useState(false);
+    const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
+
     useEffect(() => {
       if (rendered) Plotly.Plots.resize(chartDivId);
     }, [props.node.id, rendered, splitPosition]);
@@ -98,7 +105,13 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
       };
       allData = [data1];
     }
-
+    const selectedData = allData.map(d => {
+      const visible = legendSettings.find(s => s.name == d.name)?.visible
+      return ({
+        ...d,
+        visible: (visible || (visible == undefined)) ? true : "legendonly"
+      })
+    })
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
       xaxis: { showspikes: true, tickmode: "auto", nticks: 20 },
@@ -114,9 +127,18 @@ const PerformanceChart = forwardRef<PerformanceChartHandle, Props>(
         onAfterPlot={() => {
           setRendered(true);
         }}
+        onUpdate={(f) => {
+          const nextLegendSettings = f.data?.map((d) => {
+            /* @ts-expect-error d.visible */
+            return { name: d.name || "", visible: d.visible == undefined || d.visible == true }
+          }) || []
+          if (JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)) {
+            setLegendSettings(nextLegendSettings)
+          }
+        }}
         divId={chartDivId}
         style={{ width: "100%", height: "100%" }}
-        data={allData}
+        data={selectedData as Data[]}
         useResizeHandler
         layout={layout}
         config={{ responsive: true, modeBarButtonsToRemove: ["toImage"] }}
