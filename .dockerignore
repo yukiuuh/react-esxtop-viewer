@@ -1,0 +1,6 @@
+src-tauri
+.git
+dist
+node_modules
+.devcontainer
+.github
