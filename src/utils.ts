@@ -152,6 +152,36 @@ export const parseCSVv2 = async (
   return { data: rows };
 };
 
+export const parseCSVv3 = async (
+  file: File,
+  skipFirstRow?: boolean,
+  onProgress?: (percent: number) => void,
+): Promise<{ data: string[][] }> => {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./csvParser.worker.ts', import.meta.url), {
+      type: 'module'
+    });
+
+    worker.onmessage = (e) => {
+      if (e.data.type === 'progress') {
+        if (onProgress) {
+          onProgress(e.data.data);
+        }
+      } else if (e.data.type === 'done') {
+        resolve(e.data.data);
+        worker.terminate();
+      }
+    };
+
+    worker.onerror = (e) => {
+      reject(e);
+      worker.terminate();
+    };
+
+    worker.postMessage({ file, skipFirstRow });
+  });
+};
+
 const analysisFields = (fields: string[]) => {
   const ignoreFieldNum = 1;
 

@@ -16,7 +16,7 @@ import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
-import { parseCSVv2, readCsvHeader, removeFirstLineFromCSV } from "./utils";
+import { parseCSVv3, readCsvHeader, removeFirstLineFromCSV } from "./utils";
 import { CdsButton } from "@cds/react/button";
 
 const App: React.FC = () => {
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [splitPosition, setSplitPosition] = useState(20);
   const [metricFields, setMetricFields] = useState<string[][]>([]);
   const [metricFieldTrees, setMetricFieldTrees] = useState<TreeNode[]>([]);
+  const [loadingMessage, setLoadingMessage] = useState("")
 
   const metricField = metricFields[selectedEsxtopDataIndex] || [];
   const [metricData, setMetricData] = useState<Datum[][][]>([]);
@@ -59,7 +60,7 @@ const App: React.FC = () => {
                   cds-layout="horizontal"
                   style={{
                     overflow: "clip",
-                    width: "80vw",
+                    width: "90vw",
                   }}
                 >
                   <MultiFileMetricBrowser
@@ -122,9 +123,9 @@ const App: React.FC = () => {
                           const fields = await readCsvHeader(
                             file,
                             (bytesRead) => {
-                              console.debug(
-                                `file ${file.name} header loading progress: ${bytesRead} bytes`,
-                              );
+                              const msg = `file ${file.name} header loading progress: ${bytesRead} bytes`
+                              console.debug(msg)
+                              setLoadingMessage(msg)
                             },
                           );
                           console.debug(
@@ -134,18 +135,18 @@ const App: React.FC = () => {
                           const trimmedFile = await removeFirstLineFromCSV(
                             file,
                             (progress) => {
-                              console.debug(
-                                `file ${file.name} trim header line progress: ${progress}%`,
-                              );
+                              const msg = `file ${file.name} trim header line progress: ${Math.trunc(progress)}%`
+                              console.debug(msg)
+                              setLoadingMessage(msg)
                             },
                           );
-                          const csvData = await parseCSVv2(
+                          const csvData = await parseCSVv3(
                             trimmedFile,
                             false,
                             (progress) => {
-                              console.debug(
-                                `file ${file.name} loading progress: ${progress}%`,
-                              );
+                              const msg = `file ${file.name} loading progress: ${Math.trunc(progress)}%`
+                              console.debug(msg)
+                              setLoadingMessage(msg)
                             },
                           );
                           return {
@@ -192,7 +193,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
-      <LoadingOverlay loading={loading} />
+      <LoadingOverlay message={loadingMessage} loading={loading} />
     </div>
   );
 };
