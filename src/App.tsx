@@ -43,16 +43,15 @@ const App: React.FC = () => {
   );
 
   // 3. フィルタリングされたツリーのメモ化：esxtopDataかfilterKeywordが変更されたときだけ再計算
-  const filteredMetricFieldTrees = useMemo(() => {
+  const filteredEsxtopData = useMemo(() => {
     if (!filterKeyword) {
-      return esxtopData.map((d) => d.metricFieldTree);
+      return esxtopData;
     }
-    return esxtopData.map((d) => {
-      const filtered = filterTree(d.metricFieldTree, filterKeyword);
-      return filtered.children.length > 0
-        ? filtered
-        : { id: d.metricFieldTree.id, field_index: -1, children: [], path: "" };
-    });
+    // Return a new EsxtopData array with filtered trees
+    return esxtopData.map((data) => ({
+      ...data,
+      metricFieldTree: filterTree(data.metricFieldTree, filterKeyword),
+    }));
   }, [esxtopData, filterKeyword]);
 
   const handleExportToImage = () => {
@@ -134,22 +133,15 @@ const App: React.FC = () => {
             <SplitPane initPosition={20} onPositionChanged={setSplitPosition}>
               <div
                 style={{
-                  overflowY: "scroll",
-                  overflowX: "clip",
-                  position: "relative",
                   height: "100%",
+                  overflowX: "hidden",
+                  overflowY: "auto",
                 }}
               >
-                <div
-                  cds-layout="horizontal"
-                  style={{
-                    overflow: "clip",
-                    width: "90vw",
-                  }}
-                >
+                <div style={{ minWidth: "90vw", height: "100%" }}>
                   <MultiFileMetricBrowser
                     loading={loading}
-                    metricNodes={filteredMetricFieldTrees}
+                    esxtopData={filteredEsxtopData}
                     onSelectedChange={(node, dataIndex) => {
                       setSelectedNode(node);
                       setSelectedEsxtopDataIndex(dataIndex);

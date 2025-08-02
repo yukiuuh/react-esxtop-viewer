@@ -57,9 +57,11 @@ const PerformanceChart = memo(
     const { node, metricData, metricField, splitPosition } = props;
     const selectedFieldIndex = node.field_index;
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
-
+    const hasNoData =
+      node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
     useImperativeHandle(ref, () => ({
       exportToImage() {
+        if (hasNoData) return;
         Plotly.toImage(chartDivId, {
           format: "png",
           width: null,
@@ -144,6 +146,7 @@ const PerformanceChart = memo(
         family: "var(--cds-global-typography-font-family)",
       },
     };
+    if (hasNoData) return <div id={chartDivId}></div>;
 
     return (
       <Plot
