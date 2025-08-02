@@ -9,9 +9,9 @@ import Plotly from "plotly.js-dist-min";
 import createPlotlyComponent from "react-plotly.js/factory";
 import { Datum, PlotData, Layout, Data } from "plotly.js";
 import { TreeNode } from "./TreeNode";
-import { isTauri } from "./utils";
-import { save } from "@tauri-apps/api/dialog";
-import { writeBinaryFile } from "@tauri-apps/api/fs";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { isTauri } from "@tauri-apps/api/core";
 const Plot = createPlotlyComponent(Plotly);
 
 export type LegendSetting = {
@@ -72,8 +72,10 @@ const PerformanceChart = memo(
             .then(async (blob) => {
               if (isTauri()) {
                 const path = await save({ defaultPath: "export.png" });
-                const arrayBuffer = await blob.arrayBuffer();
-                if (path) await writeBinaryFile(path, arrayBuffer);
+                if (path) {
+                  const arrayBuffer = await blob.arrayBuffer();
+                  await writeFile(path, new Blob([arrayBuffer]).stream());
+                }
               } else {
                 const link = document.createElement("a");
                 link.download = "export.png";

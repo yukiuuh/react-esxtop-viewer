@@ -227,13 +227,7 @@ const analysisFields = (fields: string[]) => {
   return root;
 };
 
-const isTauri = () => {
-  return (
-    typeof window !== "undefined" && typeof window.__TAURI__ !== "undefined"
-  );
-};
-
-export { analysisFields, isTauri };
+export { analysisFields };
 
 export const readCsvHeaderV2 = async (
   file: File,
