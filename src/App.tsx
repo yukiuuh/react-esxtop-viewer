@@ -131,24 +131,14 @@ const App: React.FC = () => {
         <div cds-layout="vertical align:stretch" style={{ height: "100%" }}>
           <div cds-layout="horizontal align:stretch gap:md wrap:none">
             <SplitPane initPosition={20} onPositionChanged={setSplitPosition}>
-              <div
-                style={{
-                  height: "100%",
-                  overflowX: "hidden",
-                  overflowY: "auto",
+              <MultiFileMetricBrowser
+                loading={loading}
+                esxtopData={filteredEsxtopData}
+                onSelectedChange={(node, dataIndex) => {
+                  setSelectedNode(node);
+                  setSelectedEsxtopDataIndex(dataIndex);
                 }}
-              >
-                <div style={{ minWidth: "90vw", height: "100%" }}>
-                  <MultiFileMetricBrowser
-                    loading={loading}
-                    esxtopData={filteredEsxtopData}
-                    onSelectedChange={(node, dataIndex) => {
-                      setSelectedNode(node);
-                      setSelectedEsxtopDataIndex(dataIndex);
-                    }}
-                  />
-                </div>
-              </div>
+              />
               {selectedNode ? (
                 <PerformanceChart
                   ref={performanceChartRef}

@@ -124,53 +124,62 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
   }
 
   return (
-    <div ref={parentRef} style={{ height: "100%", overflow: "auto" }}>
-      <CdsTree
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          width: "100%",
-          position: "relative",
-        }}
-      >
-        {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-          const row = flatRows[virtualItem.index];
-          if (!row) return null;
-
-          return (
-            <CdsTreeItem
-              key={row.id}
-              selected={selectedNodePath === row.node.path && row.isSelectable}
-              expanded={row.isExpanded}
-              expandable={row.node.children.length > 0}
-              onExpandedChange={() => handleToggleExpand(row.id)}
-              onSelectedChange={() =>
-                row.isSelectable && handleSelectNode(row.node, row.dataIndex)
-              }
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: `${virtualItem.size}px`,
-                transform: `translateY(${virtualItem.start}px)`,
-                paddingLeft: `${row.depth * 1.2}rem`,
-                cursor: row.isSelectable ? "pointer" : "default",
-              }}
-            >
-              <CdsIcon
-                shape={
-                  row.node.children.length == 0
-                    ? "block"
-                    : row.node.children.some((child) => child.field_index == -1)
-                      ? "folder"
-                      : "blocks-group"
+    <div
+      ref={parentRef}
+      style={{ height: "100%", overflowY: "scroll", overflowX: "clip" }}
+    >
+      <div style={{ overflow: "visible", width: "90vw" }}>
+        <CdsTree
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            width: "100%",
+            position: "relative",
+            userSelect: "none",
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+            const row = flatRows[virtualItem.index];
+            if (!row) return null;
+            return (
+              <CdsTreeItem
+                key={row.id}
+                selected={
+                  selectedNodePath === row.node.path && row.isSelectable
                 }
-              />
-              {row.node.id}
-            </CdsTreeItem>
-          );
-        })}
-      </CdsTree>
+                expanded={row.isExpanded}
+                expandable={row.node.children.length > 0}
+                onExpandedChange={() => handleToggleExpand(row.id)}
+                onSelectedChange={() =>
+                  row.isSelectable && handleSelectNode(row.node, row.dataIndex)
+                }
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualItem.size}px`,
+                  transform: `translateY(${virtualItem.start}px)`,
+                  paddingLeft: `${row.depth * 1.2}rem`,
+                  cursor: row.isSelectable ? "pointer" : "default",
+                }}
+              >
+                <CdsIcon
+                  shape={
+                    row.node.children.length == 0
+                      ? "block"
+                      : row.node.children.some(
+                            (child) => child.field_index == -1,
+                          )
+                        ? "folder"
+                        : "blocks-group"
+                  }
+                />
+                {row.node.id}
+              </CdsTreeItem>
+            );
+          })}
+        </CdsTree>
+      </div>
     </div>
   );
 };
