@@ -6,12 +6,19 @@ import {
   memo,
 } from "react";
 import Plotly from "plotly.js-dist-min";
-import createPlotlyComponent from "react-plotly.js/factory";
+import createPlotlyComponentModule from "react-plotly.js/factory.js";
 import { Datum, PlotData, Layout, Data } from "plotly.js";
 import { TreeNode } from "./TreeNode";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
+
+const createPlotlyComponent =
+  (
+    createPlotlyComponentModule as {
+      default?: typeof createPlotlyComponentModule;
+    }
+  ).default ?? createPlotlyComponentModule;
 const Plot = createPlotlyComponent(Plotly);
 
 export type LegendSetting = {

@@ -4,19 +4,25 @@ Visualize esxtop data captured in batch mode.
 
 ## Requirements
 
-- node
-- yarn
+- Node.js 22+
+- Corepack
 
 ## Build
 
 ```sh
-yarn install
-yarn build
+corepack enable
+corepack yarn install
+corepack yarn build
 ```
 
 ## Development
 
 ```sh
-yarn install
-yarn dev
+corepack enable
+corepack yarn install
+corepack yarn dev
 ```
+
+## Toolchain
+
+This project uses Vite+ via the local `vp` CLI exposed through Yarn scripts.

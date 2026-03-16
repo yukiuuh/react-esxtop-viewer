@@ -19,6 +19,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Get node_modules cache
         uses: actions/cache@v4
         id: node_modules
@@ -28,12 +31,12 @@ jobs:
           key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies
-        run: yarn install
+        run: corepack yarn install --frozen-lockfile
 
       - run: echo "REPOSITORY_NAME=${GITHUB_REPOSITORY#${GITHUB_REPOSITORY_OWNER}/}" >> $GITHUB_ENV
 
       - name: Build the project
-        run: yarn build
+        run: corepack yarn build
         env:
           BASE_PATH: ${{ env.REPOSITORY_NAME }}
 
