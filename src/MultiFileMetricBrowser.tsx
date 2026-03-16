@@ -2,7 +2,7 @@ import { CdsTree, CdsTreeItem } from "@cds/react/tree-view";
 import React, { useState, useMemo, useRef } from "react";
 import { TreeNode } from "./TreeNode";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { EsxtopData } from "./esxtop";
+import { Dataset } from "./models/dataset";
 import {
   ClarityIcons,
   blockIcon,
@@ -15,7 +15,7 @@ ClarityIcons.addIcons(blockIcon, blocksGroupIcon, folderIcon);
 
 type Props = {
   loading?: boolean;
-  esxtopData?: EsxtopData[];
+  esxtopData?: Dataset[];
   onSelectedChange?: (node: TreeNode, selectedEsxtopDataIndex: number) => void;
 };
 
