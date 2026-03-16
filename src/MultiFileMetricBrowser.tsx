@@ -15,8 +15,8 @@ ClarityIcons.addIcons(blockIcon, blocksGroupIcon, folderIcon);
 
 type Props = {
   loading?: boolean;
-  esxtopData?: Dataset[];
-  onSelectedChange?: (node: TreeNode, selectedEsxtopDataIndex: number) => void;
+  datasets?: Dataset[];
+  onSelectedChange?: (node: TreeNode, selectedDatasetIndex: number) => void;
 };
 
 interface FlatRow {
@@ -30,7 +30,7 @@ interface FlatRow {
 
 const MultiFileMetricBrowser: React.FC<Props> = ({
   loading,
-  esxtopData,
+  datasets,
   onSelectedChange,
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -38,7 +38,7 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
 
   const flatRows = useMemo((): FlatRow[] => {
     const rows: FlatRow[] = [];
-    if (!esxtopData) return rows;
+    if (!datasets) return rows;
 
     const buildMetricRows = (
       nodes: TreeNode[],
@@ -64,9 +64,9 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
       });
     };
 
-    esxtopData.forEach((data, index) => {
+    datasets.forEach((dataset, index) => {
       // フィルタリングによって子が空になった場合でもファイル名は表示する
-      if (!data.metricFieldTree) return;
+      if (!dataset.metricFieldTree) return;
 
       const fileNodeId = `file-${index}`;
       const isFileExpanded = expandedNodes.has(fileNodeId);
@@ -74,8 +74,8 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
       rows.push({
         id: fileNodeId,
         node: {
-          id: data.fileName,
-          children: data.metricFieldTree.children,
+          id: dataset.fileName,
+          children: dataset.metricFieldTree.children,
           path: fileNodeId,
           field_index: -2,
         },
@@ -86,12 +86,12 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
       });
 
       if (isFileExpanded) {
-        buildMetricRows(data.metricFieldTree.children, 1, index, fileNodeId);
+        buildMetricRows(dataset.metricFieldTree.children, 1, index, fileNodeId);
       }
     });
 
     return rows;
-  }, [esxtopData, expandedNodes]);
+  }, [datasets, expandedNodes]);
 
   const parentRef = useRef<HTMLDivElement>(null);
 

@@ -2,16 +2,22 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useState,
   memo,
 } from "react";
 import Plotly from "plotly.js-dist-min";
 import createPlotlyComponentModule from "react-plotly.js/factory.js";
-import { Datum, PlotData, Layout, Data } from "plotly.js";
+import { Layout, Data } from "plotly.js";
 import { TreeNode } from "./TreeNode";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
+import {
+  applyLegendVisibility,
+  buildBaseSeries,
+  buildChartTitle,
+} from "./chartSeries";
 
 const createPlotlyComponent =
   (
@@ -38,26 +44,6 @@ export interface PerformanceChartHandle {
 }
 
 const chartDivId = "plotlyChart";
-
-// "nan"などの文字列をプロット可能なnullに変換し、数値をパースするヘルパー関数
-const sanitizeDatum = (datum: Datum): number | null => {
-  if (datum === null || datum === undefined) {
-    return null;
-  }
-  if (typeof datum === "number") {
-    return isNaN(datum) ? null : datum;
-  }
-  if (typeof datum === "string") {
-    // "nan" は大文字小文字を区別せずにチェック
-    if (datum.toLowerCase() === "nan") {
-      return null;
-    }
-    const num = parseFloat(datum);
-    return isNaN(num) ? null : num;
-  }
-  // string, number, null 以外はプロットしない
-  return null;
-};
 
 const PerformanceChart = memo(
   forwardRef<PerformanceChartHandle, Props>((props, ref) => {
@@ -99,52 +85,18 @@ const PerformanceChart = memo(
       Plotly.Plots.resize(chartDivId);
     }, [splitPosition]);
 
-    const x = metricData.map((d) => {
-      const _d = d as string[];
-      return _d[0];
-    });
-    const title =
-      selectedFieldIndex < 0 ? node.path : metricField[selectedFieldIndex];
-    let allData: Partial<PlotData>[];
-
-    if (selectedFieldIndex < 0) {
-      const leafs = node.children.filter((v) => v.children.length == 0);
-
-      allData = leafs
-        .filter((leaf) => leaf.field_index > 0)
-        .map((leaf) => {
-          const leafIndex = leaf.field_index;
-          const data: Partial<PlotData> = {
-            type: "scattergl",
-            x: x,
-            y: metricData.map((d) => sanitizeDatum((d as Datum[])[leafIndex])),
-            name: leaf.id,
-            marker: { symbol: "circle", opacity: 1, size: 5 },
-            mode: "lines+markers",
-          };
-          return data;
-        });
-    } else {
-      const y = metricData.map((d) =>
-        sanitizeDatum((d as Datum[])[selectedFieldIndex]),
-      );
-
-      const data1: Partial<PlotData> = {
-        type: "scattergl",
-        x: x,
-        y: y,
-        marker: { symbol: "circle", opacity: 1, size: 3 },
-        mode: "lines+markers",
-      };
-      allData = [data1];
-    }
-    const selectedData = allData.map((d) => {
-      const visible = legendSettings.find((s) => s.name == d.name)?.visible;
-      return {
-        ...d,
-        visible: visible || visible == undefined ? true : "legendonly",
-      };
-    });
+    const title = useMemo(() => buildChartTitle(node, metricField), [
+      node,
+      metricField,
+    ]);
+    const baseSeries = useMemo(() => buildBaseSeries(node, metricData), [
+      node,
+      metricData,
+    ]);
+    const selectedData = useMemo(
+      () => applyLegendVisibility(baseSeries, legendSettings),
+      [baseSeries, legendSettings],
+    );
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
       xaxis: { showspikes: true, tickmode: "auto", nticks: 20 },

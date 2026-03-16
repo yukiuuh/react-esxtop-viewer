@@ -15,6 +15,9 @@ export default defineConfig({
   build: {
     cssMinify: false
   },
+  test: {
+    include: ["src/**/*.test.ts"],
+  },
   // アプリケーションコード内で参照できるように環境変数を定義
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion)

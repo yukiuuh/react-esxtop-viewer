@@ -3,9 +3,10 @@ import { FileLoadMetric, FileLoadStepMetric } from "../devPerf";
 import { Dataset } from "../models/dataset";
 import { esxtopParser } from "../parsers/esxtopParser";
 import { FileParser, toDataset } from "../parsers/types";
+import { LoadProgressEvent } from "./loadProgress";
 
 type LoadFilesOptions = {
-  onProgress?: (message: string) => void;
+  onProgress?: (event: LoadProgressEvent) => void;
 };
 
 type LoadFilesResult = {

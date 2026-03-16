@@ -1,3 +1,5 @@
+import { parseCsvHeaderLine } from "./parsers/csvFormat";
+
 self.onmessage = async (e) => {
   const { file } = e.data;
   const reader = file.stream().getReader();
@@ -29,17 +31,7 @@ self.onmessage = async (e) => {
     self.close();
     return;
   }
-  const headerFields = header
-    .split(",")
-    .map((field) => {
-      const f = field.trim().split('"')[1] || "";
-      try {
-        return decodeURI(f);
-      } catch (e) {
-        return f;
-      }
-    })
-    .filter((field) => field.length > 0);
+  const headerFields = parseCsvHeaderLine(header);
   self.postMessage({ type: "done", data: headerFields });
   self.close();
 };

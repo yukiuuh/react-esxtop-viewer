@@ -1,5 +1,6 @@
 import { Datum } from "plotly.js";
 import { computeEsxtopFieldTreeV2 } from "../esxtop";
+import { LoadProgressEvent } from "../services/loadProgress";
 import { parseCSVv3, readCsvHeaderV2, removeFirstLineFromCSV } from "../utils";
 import { FileParser, ParsedMetricData } from "./types";
 
@@ -11,26 +12,62 @@ export const esxtopParser: FileParser = {
   },
 
   async parse(file, onProgress): Promise<ParsedMetricData> {
-    onProgress?.(`Loading header from ${file.name}`);
+    const emit = (event: LoadProgressEvent) => onProgress?.(event);
+
+    emit({
+      fileName: file.name,
+      stage: "read-header",
+      message: `Loading header from ${file.name}`,
+    });
     const fields = await readCsvHeaderV2(file, (bytesRead) => {
-      onProgress?.(`Loading header from ${file.name}: ${bytesRead} bytes`);
+      emit({
+        fileName: file.name,
+        stage: "read-header",
+        message: `Loading header from ${file.name}`,
+        bytesRead,
+      });
     });
 
-    onProgress?.(`Computing field tree from ${file.name}`);
+    emit({
+      fileName: file.name,
+      stage: "build-tree",
+      message: `Computing field tree from ${file.name}`,
+    });
     const fieldTree = await computeEsxtopFieldTreeV2(fields, (progress) => {
-      onProgress?.(
-        `Computing field tree from ${file.name}: ${Math.trunc(progress)}%`,
-      );
+      emit({
+        fileName: file.name,
+        stage: "build-tree",
+        message: `Computing field tree from ${file.name}`,
+        percent: progress,
+      });
     });
 
-    onProgress?.(`Trimming header from ${file.name}`);
+    emit({
+      fileName: file.name,
+      stage: "trim-header",
+      message: `Trimming header from ${file.name}`,
+    });
     const trimmedFile = await removeFirstLineFromCSV(file, (progress) => {
-      onProgress?.(`Trimming header from ${file.name}: ${Math.trunc(progress)}%`);
+      emit({
+        fileName: file.name,
+        stage: "trim-header",
+        message: `Trimming header from ${file.name}`,
+        percent: progress,
+      });
     });
 
-    onProgress?.(`Parsing data from ${file.name}`);
+    emit({
+      fileName: file.name,
+      stage: "parse-data",
+      message: `Parsing data from ${file.name}`,
+    });
     const csvData = await parseCSVv3(trimmedFile, false, (progress) => {
-      onProgress?.(`Parsing data from ${file.name}: ${Math.trunc(progress)}%`);
+      emit({
+        fileName: file.name,
+        stage: "parse-data",
+        message: `Parsing data from ${file.name}`,
+        percent: progress,
+      });
     });
 
     return {

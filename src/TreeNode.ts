@@ -17,12 +17,21 @@ const deepCopy = (node: TreeNode): TreeNode => {
 
 const filterTree = (tree: TreeNode, filterString?: string): TreeNode => {
   const MIN_FILTER_STRING = 2;
+  const isCaseInsensitive = filterString?.toLowerCase() == filterString;
+  const nodeMatches = (node: TreeNode): boolean => {
+    if (!filterString || filterString.length <= MIN_FILTER_STRING) {
+      return true;
+    }
+
+    return isCaseInsensitive
+      ? node.id.toLowerCase().includes(filterString)
+      : node.id.includes(filterString);
+  };
+
   if (
     !filterString ||
     filterString.length <= MIN_FILTER_STRING ||
-    (filterString.toLowerCase() == filterString // case-insensitive search if filter string is all in lower case.
-      ? tree.id.toLowerCase().includes(filterString)
-      : tree.id.includes(filterString))
+    nodeMatches(tree)
   ) {
     return tree;
   }
@@ -36,8 +45,12 @@ const filterTree = (tree: TreeNode, filterString?: string): TreeNode => {
   if (tree.children) {
     for (const child of tree.children) {
       const filteredChild = filterTree(child, filterString);
-      if (filteredChild.children.length > 0 && filteredChild.id.length > 0)
+      if (
+        filteredChild.id.length > 0 &&
+        (filteredChild.children.length > 0 || nodeMatches(filteredChild))
+      ) {
         filteredNode.children.push(filteredChild);
+      }
     }
   }
 

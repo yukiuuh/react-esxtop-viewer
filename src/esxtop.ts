@@ -1,12 +1,4 @@
-import { Datum } from "plotly.js";
 import { TreeNode } from "./TreeNode";
-
-interface EsxtopData {
-  fileName: string;
-  metricFieldTree: TreeNode;
-  metricField: string[];
-  metricData: Datum[][];
-}
 
 const computeEsxtopFieldTree = (fields: string[]) => {
   const ignoreFieldNum = 1;
@@ -142,4 +134,3 @@ const splitAtFirstColon = (str: string): string[] => {
 };
 
 export { computeEsxtopFieldTree };
-export type { EsxtopData };

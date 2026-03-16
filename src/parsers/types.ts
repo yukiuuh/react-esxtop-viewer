@@ -1,6 +1,7 @@
 import { Datum } from "plotly.js";
 import { TreeNode } from "../TreeNode";
 import { Dataset, DatasetFormat } from "../models/dataset";
+import { LoadProgressEvent } from "../services/loadProgress";
 
 export interface ParsedMetricData {
   fields: string[];
@@ -13,7 +14,7 @@ export interface FileParser {
   canParse(file: File): boolean | Promise<boolean>;
   parse(
     file: File,
-    onProgress?: (message: string) => void,
+    onProgress?: (event: LoadProgressEvent) => void,
   ): Promise<ParsedMetricData>;
 }
 

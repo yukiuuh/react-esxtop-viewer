@@ -14,6 +14,7 @@ import LoadingOverlay from "./LoadingOverlay";
 import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import { Dataset } from "./models/dataset";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
+import { formatLoadProgress } from "./services/loadProgress";
 import {
   getDatasetMetricData,
   getDatasetMetricFields,
@@ -23,8 +24,8 @@ import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
 
 const App: React.FC = () => {
-  const [esxtopData, setEsxtopData] = useState<Dataset[]>([]);
-  const [selectedEsxtopDataIndex, setSelectedEsxtopDataIndex] = useState(0);
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState(0);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [loading, setLoading] = useState(false);
   const [fileStatus, setFileStatus] = useState<ControlStatus>("neutral");
@@ -35,23 +36,23 @@ const App: React.FC = () => {
   const performanceChartRef = useRef<PerformanceChartHandle>(null);
 
   const currentMetricField = useMemo(
-    () => getDatasetMetricFields(esxtopData[selectedEsxtopDataIndex]),
-    [esxtopData, selectedEsxtopDataIndex],
+    () => getDatasetMetricFields(datasets[selectedDatasetIndex]),
+    [datasets, selectedDatasetIndex],
   );
   const currentMetricData = useMemo(
-    () => getDatasetMetricData(esxtopData[selectedEsxtopDataIndex]),
-    [esxtopData, selectedEsxtopDataIndex],
+    () => getDatasetMetricData(datasets[selectedDatasetIndex]),
+    [datasets, selectedDatasetIndex],
   );
 
-  const filteredEsxtopData = useMemo(() => {
+  const filteredDatasets = useMemo(() => {
     if (!filterKeyword) {
-      return esxtopData;
+      return datasets;
     }
-    return esxtopData.map((data) => ({
-      ...data,
-      metricFieldTree: filterTree(data.metricFieldTree, filterKeyword),
+    return datasets.map((dataset) => ({
+      ...dataset,
+      metricFieldTree: filterTree(dataset.metricFieldTree, filterKeyword),
     }));
-  }, [esxtopData, filterKeyword]);
+  }, [datasets, filterKeyword]);
 
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
@@ -59,13 +60,13 @@ const App: React.FC = () => {
 
   const handleFileChange = async (files: File[]) => {
     if (files.length === 0) {
-      setEsxtopData([]);
+      setDatasets([]);
       setFileStatus("neutral");
       setLoading(false);
       return;
     }
 
-    setEsxtopData([]);
+    setDatasets([]);
     setFileStatus("neutral");
     setLoading(true);
 
@@ -74,11 +75,11 @@ const App: React.FC = () => {
 
     try {
       const result = await loadFiles(files, {
-        onProgress(message) {
-          setLoadingMessage(message);
+        onProgress(event) {
+          setLoadingMessage(formatLoadProgress(event));
         },
       });
-      setEsxtopData(result.datasets);
+      setDatasets(result.datasets);
       setFileStatus("success");
       logPerfSessionToConsole({
         startedAt,
@@ -115,10 +116,10 @@ const App: React.FC = () => {
             <SplitPane initPosition={20} onPositionChanged={setSplitPosition}>
               <MultiFileMetricBrowser
                 loading={loading}
-                esxtopData={filteredEsxtopData}
+                datasets={filteredDatasets}
                 onSelectedChange={(node, dataIndex) => {
                   setSelectedNode(node);
-                  setSelectedEsxtopDataIndex(dataIndex);
+                  setSelectedDatasetIndex(dataIndex);
                 }}
               />
               {selectedNode ? (

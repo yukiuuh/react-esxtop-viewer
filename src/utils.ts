@@ -1,4 +1,5 @@
 import { TreeNode } from "./TreeNode";
+import { parseCsvHeaderLine } from "./parsers/csvFormat";
 
 export const removeFirstLineFromCSV = (
   inputFile: File,
@@ -90,17 +91,7 @@ export const readCsvHeader = async (
     throw new Error("Empty CSV file");
   }
 
-  return header
-    .split(",")
-    .map((field) => {
-      const f = field.trim().split('"')[1] || "";
-      try {
-        return decodeURI(f);
-      } catch (e) {
-        return f;
-      }
-    })
-    .filter((field) => field.length > 0);
+  return parseCsvHeaderLine(header);
 };
 
 export const parseCSVv2 = async (
