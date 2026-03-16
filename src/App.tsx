@@ -1,4 +1,3 @@
-import "@cds/city/css/bundles/default.min.css"; // load base font
 import { ControlStatus } from "@cds/core/forms";
 import "@cds/core/global.css"; // pre-minified version breaks
 import "@cds/core/icon/register.js";
