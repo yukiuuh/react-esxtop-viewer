@@ -8,6 +8,11 @@ import { CdsDivider } from "@cds/react/divider";
 import { Datum } from "plotly.js";
 import React, { useMemo, useRef, useState } from "react";
 import "./App.css";
+import {
+  FileLoadMetric,
+  FileLoadStepMetric,
+  logPerfSessionToConsole,
+} from "./devPerf";
 import { computeEsxtopFieldTreeV2, EsxtopData } from "./esxtop";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
@@ -70,50 +75,136 @@ const App: React.FC = () => {
     setFileStatus("neutral");
     setLoading(true);
 
+    const sessionStart = performance.now();
+    const startedAt = new Date().toISOString();
+
     try {
       const results = await Promise.all(
         files.map(async (file) => {
-          const fields = await readCsvHeaderV2(file, (bytesRead) => {
-            setLoadingMessage(
-              `Loading header from ${file.name}: ${bytesRead} bytes`,
-            );
-          });
+          const fileStart = performance.now();
+          const steps: FileLoadStepMetric[] = [];
+          let headerProgressEvents = 0;
+          let fieldTreeProgressEvents = 0;
+          let trimProgressEvents = 0;
+          let parseProgressEvents = 0;
+          let fields: string[] = [];
+          let rowCount = 0;
 
-          const fieldTree = await computeEsxtopFieldTreeV2(
-            fields,
-            (progress) => {
+          try {
+            let stepStart = performance.now();
+            fields = await readCsvHeaderV2(file, (bytesRead) => {
+              headerProgressEvents += 1;
+              setLoadingMessage(
+                `Loading header from ${file.name}: ${bytesRead} bytes`,
+              );
+            });
+            steps.push({
+              label: "read header",
+              durationMs: performance.now() - stepStart,
+              progressEvents: headerProgressEvents,
+              extra: { fields: fields.length },
+            });
+
+            stepStart = performance.now();
+            const fieldTree = await computeEsxtopFieldTreeV2(fields, (progress) => {
+              fieldTreeProgressEvents += 1;
               setLoadingMessage(
                 `Computing field tree from ${file.name}: ${Math.trunc(progress)}%`,
               );
-            },
-          );
+            });
+            steps.push({
+              label: "build field tree",
+              durationMs: performance.now() - stepStart,
+              progressEvents: fieldTreeProgressEvents,
+              extra: { fields: fields.length },
+            });
 
-          const trimmedFile = await removeFirstLineFromCSV(file, (progress) => {
-            setLoadingMessage(
-              `Trimming header from ${file.name}: ${Math.trunc(progress)}%`,
-            );
-          });
+            stepStart = performance.now();
+            const trimmedFile = await removeFirstLineFromCSV(file, (progress) => {
+              trimProgressEvents += 1;
+              setLoadingMessage(
+                `Trimming header from ${file.name}: ${Math.trunc(progress)}%`,
+              );
+            });
+            steps.push({
+              label: "trim header line",
+              durationMs: performance.now() - stepStart,
+              progressEvents: trimProgressEvents,
+              extra: { outputSize: trimmedFile.size },
+            });
 
-          const csvData = await parseCSVv3(trimmedFile, false, (progress) => {
-            setLoadingMessage(
-              `Parsing data from ${file.name}: ${Math.trunc(progress)}%`,
-            );
-          });
+            stepStart = performance.now();
+            const csvData = await parseCSVv3(trimmedFile, false, (progress) => {
+              parseProgressEvents += 1;
+              setLoadingMessage(
+                `Parsing data from ${file.name}: ${Math.trunc(progress)}%`,
+              );
+            });
+            rowCount = csvData.data.length;
+            steps.push({
+              label: "parse csv",
+              durationMs: performance.now() - stepStart,
+              progressEvents: parseProgressEvents,
+              extra: { rows: rowCount },
+            });
 
-          return {
-            fileName: file.name,
-            metricField: fields,
-            metricFieldTree: fieldTree,
-            metricData: csvData.data as Datum[][],
-          };
+            const fileMetric: FileLoadMetric = {
+              fileName: file.name,
+              fileSize: file.size,
+              totalDurationMs: performance.now() - fileStart,
+              steps,
+              metricFieldCount: fields.length,
+              metricRowCount: rowCount,
+              status: "success",
+            };
+
+            return {
+              fileName: file.name,
+              metricField: fields,
+              metricFieldTree: fieldTree,
+              metricData: csvData.data as Datum[][],
+              __perfMetric: fileMetric,
+            };
+          } catch (error) {
+            const errorMetric: FileLoadMetric = {
+              fileName: file.name,
+              fileSize: file.size,
+              totalDurationMs: performance.now() - fileStart,
+              steps,
+              metricFieldCount: fields.length,
+              metricRowCount: rowCount,
+              status: "error",
+              errorMessage:
+                error instanceof Error ? error.message : "Unknown error",
+            };
+            (error as Error & { __perfMetric?: FileLoadMetric }).__perfMetric =
+              errorMetric;
+            throw error;
+          }
         }),
       );
       // 成功時に一度だけStateを更新
-      setEsxtopData(results);
+      setEsxtopData(
+        results.map(({ __perfMetric: _perfMetric, ...data }) => data),
+      );
       setFileStatus("success");
+      logPerfSessionToConsole({
+        startedAt,
+        totalDurationMs: performance.now() - sessionStart,
+        files: results.map((result) => result.__perfMetric),
+      });
     } catch (e) {
       console.error("File processing failed:", e);
       setFileStatus("error");
+      const failedMetric = (e as Error & { __perfMetric?: FileLoadMetric })
+        .__perfMetric;
+      if (failedMetric) {
+        logPerfSessionToConsole({
+          startedAt,
+          totalDurationMs: performance.now() - sessionStart,
+          files: [failedMetric],
+        });
+      }
     } finally {
       setLoading(false);
       setLoadingMessage("");
