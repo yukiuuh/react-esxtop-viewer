@@ -68,6 +68,10 @@ const App: React.FC = () => {
       metricFieldTree: filterTree(dataset.metricFieldTree, filterKeyword),
     }));
   }, [datasets, filterKeyword]);
+  const browserResetKey = useMemo(
+    () => datasets.map((dataset) => dataset.fileName).join("|"),
+    [datasets],
+  );
 
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
@@ -75,6 +79,7 @@ const App: React.FC = () => {
 
   const clearLoadedState = () => {
     pendingMetricViewRef.current = null;
+    metricViewMetricsRef.current = [];
     setSelectedNode(null);
     setSelectedDatasetIndex(0);
     setDatasets([]);
@@ -167,6 +172,7 @@ const App: React.FC = () => {
               <MultiFileMetricBrowser
                 loading={loading}
                 datasets={filteredDatasets}
+                resetKey={browserResetKey}
                 onSelectedChange={(node, dataIndex) => {
                   const nextToken = renderMeasurementToken + 1;
                   const dataset = datasets[dataIndex];

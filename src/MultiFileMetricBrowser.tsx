@@ -1,5 +1,5 @@
 import { CdsTree, CdsTreeItem } from "@cds/react/tree-view";
-import React, { useState, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { TreeNode } from "./TreeNode";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Dataset } from "./models/dataset";
@@ -11,6 +11,7 @@ ClarityIcons.addIcons(blockIcon, blocksGroupIcon, folderIcon);
 type Props = {
   loading?: boolean;
   datasets?: Dataset[];
+  resetKey?: string;
   onSelectedChange?: (node: TreeNode, selectedDatasetIndex: number) => void;
 };
 
@@ -23,9 +24,19 @@ interface FlatRow {
   isSelectable: boolean;
 }
 
-const MultiFileMetricBrowser: React.FC<Props> = ({ loading, datasets, onSelectedChange }) => {
+const MultiFileMetricBrowser: React.FC<Props> = ({
+  loading,
+  datasets,
+  resetKey,
+  onSelectedChange,
+}) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedNodePath, setSelectedNodePath] = useState<string>("");
+
+  useEffect(() => {
+    setExpandedNodes(new Set());
+    setSelectedNodePath("");
+  }, [resetKey]);
 
   const flatRows = useMemo((): FlatRow[] => {
     const rows: FlatRow[] = [];
