@@ -66,18 +66,14 @@ export const logPerfSessionToConsole = (session: PerfSessionMetric) => {
     return;
   }
 
-  console.groupCollapsed(
-    `[dev-perf] file loading session ${roundMs(session.totalDurationMs)} ms`,
-  );
+  console.groupCollapsed(`[dev-perf] file loading session ${roundMs(session.totalDurationMs)} ms`);
   console.table(
     session.files.map((fileMetric) => ({
       file: fileMetric.fileName,
       size: formatBytes(fileMetric.fileSize),
       fields: fileMetric.metricFieldCount ?? "-",
       rows: fileMetric.metricRowCount ?? "-",
-      store: fileMetric.metricStoreBytes
-        ? formatBytes(fileMetric.metricStoreBytes)
-        : "-",
+      store: fileMetric.metricStoreBytes ? formatBytes(fileMetric.metricStoreBytes) : "-",
       numericColumns: fileMetric.metricNumericColumnCount ?? "-",
       totalMs: roundMs(fileMetric.totalDurationMs),
       status: fileMetric.status,

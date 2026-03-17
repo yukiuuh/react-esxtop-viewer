@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vite-plus/test";
 import { parseCsvHeaderLine } from "./csvFormat";
-import {
-  esxtopHeaderFields,
-  esxtopHeaderLine,
-} from "../test/fixtures/esxtopHeader";
+import { esxtopHeaderFields, esxtopHeaderLine } from "../test/fixtures/esxtopHeader";
 
 describe("parseCsvHeaderLine", () => {
   test("parses an esxtop header fixture", () => {

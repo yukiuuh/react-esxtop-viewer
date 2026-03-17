@@ -10,20 +10,14 @@ const splitAtSecondColon = (str: string): string[] => {
   const firstColonPosition = str.indexOf(":");
   if (firstColonPosition < 0) return [str];
   const secondColonPosition = str.indexOf(":", firstColonPosition + 1);
-  return [
-    str.substring(0, secondColonPosition),
-    str.substring(secondColonPosition + 1),
-  ];
+  return [str.substring(0, secondColonPosition), str.substring(secondColonPosition + 1)];
 };
 
 // 1234:sh.12345:12345:sh -> 1234 sh.12345:12345:sh
 const splitAtFirstColon = (str: string): string[] => {
   const firstColonPosition = str.indexOf(":");
   return firstColonPosition > 0
-    ? [
-        str.substring(0, firstColonPosition),
-        str.substring(firstColonPosition + 1),
-      ]
+    ? [str.substring(0, firstColonPosition), str.substring(firstColonPosition + 1)]
     : [str];
 };
 
@@ -48,9 +42,7 @@ export const computeEsxtopFieldTree = (
 
     if (!field || fieldIndex < ignoreFieldNum) return;
 
-    const segmentsByBackSlash = field
-      .split("\\")
-      .filter((segment) => segment.length > 0);
+    const segmentsByBackSlash = field.split("\\").filter((segment) => segment.length > 0);
     const segmentsByFirstParensis = segmentsByBackSlash
       .map((segment) => {
         if (
@@ -77,12 +69,7 @@ export const computeEsxtopFieldTree = (
         }
 
         if (
-          [
-            "Virtual Disk",
-            "Network Port",
-            "Interrupt Cookie",
-            "Physical Disk",
-          ].includes(category)
+          ["Virtual Disk", "Network Port", "Interrupt Cookie", "Physical Disk"].includes(category)
         ) {
           return splitAtFirstColon(segment);
         }

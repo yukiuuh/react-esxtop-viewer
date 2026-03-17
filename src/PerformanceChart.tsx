@@ -1,11 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useState,
-  memo,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, memo } from "react";
 import Plotly from "plotly.js-dist-min";
 import createPlotlyComponentModule from "react-plotly.js/factory.js";
 import { Layout, Data } from "plotly.js";
@@ -14,11 +7,7 @@ import { MetricColumn } from "./models/dataset";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
-import {
-  applyLegendVisibility,
-  buildBaseSeries,
-  buildChartTitle,
-} from "./chartSeries";
+import { applyLegendVisibility, buildBaseSeries, buildChartTitle } from "./chartSeries";
 
 const createPlotlyComponent =
   (
@@ -39,11 +28,7 @@ type Props = {
   metricField: string[];
   splitPosition: number;
   renderMeasurementToken?: number;
-  onRenderMeasured?: (stats: {
-    token: number;
-    seriesCount: number;
-    pointCount: number;
-  }) => void;
+  onRenderMeasured?: (stats: { token: number; seriesCount: number; pointCount: number }) => void;
 };
 
 export interface PerformanceChartHandle {
@@ -63,8 +48,7 @@ const PerformanceChart = memo(
       onRenderMeasured,
     } = props;
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
-    const hasNoData =
-      node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
+    const hasNoData = node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
     useImperativeHandle(ref, () => ({
       exportToImage() {
         if (hasNoData) return;
@@ -107,14 +91,8 @@ const PerformanceChart = memo(
       };
     }, []);
 
-    const title = useMemo(() => buildChartTitle(node, metricField), [
-      node,
-      metricField,
-    ]);
-    const baseSeries = useMemo(() => buildBaseSeries(node, metricColumns), [
-      node,
-      metricColumns,
-    ]);
+    const title = useMemo(() => buildChartTitle(node, metricField), [node, metricField]);
+    const baseSeries = useMemo(() => buildBaseSeries(node, metricColumns), [node, metricColumns]);
     const selectedData = useMemo(
       () => applyLegendVisibility(baseSeries, legendSettings),
       [baseSeries, legendSettings],
@@ -149,12 +127,7 @@ const PerformanceChart = memo(
       });
 
       return () => cancelAnimationFrame(frameId);
-    }, [
-      onRenderMeasured,
-      pointCount,
-      renderMeasurementToken,
-      selectedData.length,
-    ]);
+    }, [onRenderMeasured, pointCount, renderMeasurementToken, selectedData.length]);
 
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
@@ -185,9 +158,7 @@ const PerformanceChart = memo(
                 visible: d.visible == undefined || d.visible == true,
               };
             }) || [];
-          if (
-            JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)
-          ) {
+          if (JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)) {
             setLegendSettings(nextLegendSettings);
           }
         }}

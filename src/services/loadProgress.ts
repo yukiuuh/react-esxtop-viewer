@@ -1,9 +1,4 @@
-export type LoadStage =
-  | "detect"
-  | "read-header"
-  | "build-tree"
-  | "trim-header"
-  | "parse-data";
+export type LoadStage = "detect" | "read-header" | "build-tree" | "trim-header" | "parse-data";
 
 export interface LoadProgressEvent {
   fileName: string;

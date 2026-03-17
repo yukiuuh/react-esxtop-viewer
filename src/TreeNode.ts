@@ -28,11 +28,7 @@ const filterTree = (tree: TreeNode, filterString?: string): TreeNode => {
       : node.id.includes(filterString);
   };
 
-  if (
-    !filterString ||
-    filterString.length <= MIN_FILTER_STRING ||
-    nodeMatches(tree)
-  ) {
+  if (!filterString || filterString.length <= MIN_FILTER_STRING || nodeMatches(tree)) {
     return tree;
   }
   const filteredNode: TreeNode = {

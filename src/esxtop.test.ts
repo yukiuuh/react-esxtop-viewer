@@ -12,9 +12,10 @@ describe("computeEsxtopFieldTree", () => {
     expect(tree.children).toHaveLength(1);
     expect(tree.children[0]?.id).toBe("Host");
     expect(tree.children[0]?.children[0]?.id).toBe("CPU");
-    expect(tree.children[0]?.children[0]?.children.map((node) => node.id)).toEqual(
-      ["Usage", "Ready"],
-    );
+    expect(tree.children[0]?.children[0]?.children.map((node) => node.id)).toEqual([
+      "Usage",
+      "Ready",
+    ]);
   });
 
   test("splits virtual disk and vcpu nodes using esxtop rules", () => {
@@ -31,9 +32,7 @@ describe("computeEsxtopFieldTree", () => {
     expect(vcpu?.children[0]?.id).toBe("0:vmname");
     expect(vcpu?.children[0]?.children[0]?.id).toBe("1:cpu");
 
-    const virtualDisk = group?.children.find(
-      (node) => node.id === "Virtual Disk",
-    );
+    const virtualDisk = group?.children.find((node) => node.id === "Virtual Disk");
     expect(virtualDisk?.children[0]?.id).toBe("naa.1");
     expect(virtualDisk?.children[0]?.children[0]?.id).toBe("READ/s");
   });

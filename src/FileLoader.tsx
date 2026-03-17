@@ -16,8 +16,7 @@ const FileLoader: React.FC<Props> = (props) => {
     if (!e.target.files) return;
     if (!inputRef.current?.files) return;
     const newFileArray = [...Array.from(e.target.files)].filter(
-      (file, index, self) =>
-        self.findIndex((f) => f.name === file.name) === index,
+      (file, index, self) => self.findIndex((f) => f.name === file.name) === index,
     );
     const dt = new DataTransfer();
     newFileArray.forEach((file) => dt.items.add(file));
@@ -30,13 +29,7 @@ const FileLoader: React.FC<Props> = (props) => {
     <div cds-layout="horizontal gap:md align:stretch">
       <CdsFile layout="compact" status={props.status}>
         <label>Input File(s): </label>
-        <input
-          type="file"
-          accept=".csv"
-          multiple
-          onChange={handleChange}
-          ref={inputRef}
-        />
+        <input type="file" accept=".csv" multiple onChange={handleChange} ref={inputRef} />
         <CdsControlMessage status={props.status}>
           {props.status == "error"
             ? "Error"

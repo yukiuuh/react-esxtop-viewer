@@ -28,11 +28,7 @@ describe("esxtop sample fixture", () => {
     const groupCpu = host?.children.find((node) => node.id === "Group Cpu");
     const vcpu = host?.children.find((node) => node.id === "Vcpu");
 
-    expect(groupCpu?.children.some((node) => node.id.includes("entity"))).toBe(
-      true,
-    );
-    expect(vcpu?.children.some((node) => node.id.includes("entity"))).toBe(
-      true,
-    );
+    expect(groupCpu?.children.some((node) => node.id.includes("entity"))).toBe(true);
+    expect(vcpu?.children.some((node) => node.id.includes("entity"))).toBe(true);
   });
 });

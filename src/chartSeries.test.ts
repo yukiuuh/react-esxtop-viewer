@@ -51,10 +51,7 @@ describe("chartSeries helpers", () => {
       ],
     };
 
-    const series = buildBaseSeries(
-      node,
-      buildMetricColumnStore(metricData).columns,
-    );
+    const series = buildBaseSeries(node, buildMetricColumnStore(metricData).columns);
 
     expect(series).toHaveLength(2);
     expect(series[0]?.name).toBe("Usage");

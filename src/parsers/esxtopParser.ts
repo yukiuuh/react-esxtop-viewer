@@ -11,12 +11,9 @@ export const esxtopParser: FileParser = {
 
   async parse(file, onProgress): Promise<ParsedMetricData> {
     return new Promise((resolve, reject) => {
-      const worker = new Worker(
-        new URL("./esxtopParser.worker.ts", import.meta.url),
-        {
-          type: "module",
-        },
-      );
+      const worker = new Worker(new URL("./esxtopParser.worker.ts", import.meta.url), {
+        type: "module",
+      });
 
       worker.onmessage = (event) => {
         if (event.data.type === "progress") {

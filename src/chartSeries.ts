@@ -24,10 +24,7 @@ export const sanitizeDatum = (datum: Datum): number | null => {
   return null;
 };
 
-export const buildChartTitle = (
-  node: TreeNode,
-  metricField: string[],
-): string => {
+export const buildChartTitle = (node: TreeNode, metricField: string[]): string => {
   return node.field_index < 0 ? node.path : metricField[node.field_index];
 };
 
@@ -66,8 +63,7 @@ export const applyLegendVisibility = (
   legendSettings: LegendSetting[],
 ): Partial<PlotData>[] => {
   return series.map((item) => {
-    const visible = legendSettings.find((setting) => setting.name === item.name)
-      ?.visible;
+    const visible = legendSettings.find((setting) => setting.name === item.name)?.visible;
 
     return {
       ...item,

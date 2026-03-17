@@ -30,14 +30,8 @@ describe("loadFiles", () => {
       { parsers: [parser] },
     );
 
-    expect(result.datasets.map((dataset) => dataset.fileName)).toEqual([
-      "first.csv",
-      "second.csv",
-    ]);
-    expect(result.metrics.map((metric) => metric.fileName)).toEqual([
-      "first.csv",
-      "second.csv",
-    ]);
+    expect(result.datasets.map((dataset) => dataset.fileName)).toEqual(["first.csv", "second.csv"]);
+    expect(result.metrics.map((metric) => metric.fileName)).toEqual(["first.csv", "second.csv"]);
   });
 
   test("emits detecting and parse progress events", async () => {
@@ -45,10 +39,7 @@ describe("loadFiles", () => {
     const parser = {
       format: "esxtop" as const,
       canParse: async () => true,
-      parse: async (
-        file: File,
-        onProgress?: (event: LoadProgressEvent) => void,
-      ) => {
+      parse: async (file: File, onProgress?: (event: LoadProgressEvent) => void) => {
         onProgress?.({
           fileName: file.name,
           stage: "read-header",
@@ -63,15 +54,12 @@ describe("loadFiles", () => {
       },
     };
 
-    const result = await loadFiles(
-      [new File(["a"], "sample.csv", { type: "text/csv" })],
-      {
-        parsers: [parser],
-        onProgress(event) {
-          progressStages.push(event.stage);
-        },
+    const result = await loadFiles([new File(["a"], "sample.csv", { type: "text/csv" })], {
+      parsers: [parser],
+      onProgress(event) {
+        progressStages.push(event.stage);
       },
-    );
+    });
 
     expect(progressStages).toEqual(["detect", "read-header"]);
     expect(result.metrics[0]?.steps).toEqual(

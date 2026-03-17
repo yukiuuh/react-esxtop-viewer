@@ -140,8 +140,7 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("File processing failed:", e);
       setFileStatus("error");
-      const failedMetric = (e as Error & { __perfMetric?: FileLoadMetric })
-        .__perfMetric;
+      const failedMetric = (e as Error & { __perfMetric?: FileLoadMetric }).__perfMetric;
       if (failedMetric) {
         logPerfSessionToConsole({
           startedAt,
@@ -199,17 +198,10 @@ const App: React.FC = () => {
               )}
             </SplitPane>
           </div>
-          <CdsDivider
-            orientation="horizontal"
-            cds-layout="align:shrink"
-          ></CdsDivider>
+          <CdsDivider orientation="horizontal" cds-layout="align:shrink"></CdsDivider>
           <div cds-layout="align:shrink m:sm">
             <div cds-layout="horizontal gap:md align:vertical-center">
-              <FileLoader
-                status={fileStatus}
-                loading={loading}
-                onChangeFiles={handleFileChange}
-              />
+              <FileLoader status={fileStatus} loading={loading} onChangeFiles={handleFileChange} />
               <CdsButton
                 cds-layout="align:right"
                 action="outline"

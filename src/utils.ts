@@ -154,12 +154,9 @@ export const parseCSVv3 = async (
   onProgress?: (percent: number) => void,
 ): Promise<{ data: string[][] }> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL("./csvParser.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./csvParser.worker.ts", import.meta.url), {
+      type: "module",
+    });
 
     const allRows: string[][] = [];
 
@@ -225,12 +222,9 @@ export const readCsvHeaderV2 = async (
   onRead?: (bytesRead: number) => void,
 ): Promise<string[]> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL("./headerReader.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./headerReader.worker.ts", import.meta.url), {
+      type: "module",
+    });
 
     worker.onmessage = (e) => {
       if (e.data.type === "progress") {

@@ -16,10 +16,7 @@ type LoadFilesResult = {
 
 const availableParsers: FileParser[] = [esxtopParser];
 
-const resolveParser = async (
-  file: File,
-  parsers: FileParser[],
-): Promise<FileParser> => {
+const resolveParser = async (file: File, parsers: FileParser[]): Promise<FileParser> => {
   for (const parser of parsers) {
     if (await parser.canParse(file)) {
       return parser;
@@ -113,8 +110,7 @@ const loadFile = async (
       metricFieldCount,
       metricRowCount,
       status: "error",
-      errorMessage:
-        error instanceof Error ? error.message : "Unknown error",
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
     };
     (error as Error & { __perfMetric?: FileLoadMetric }).__perfMetric = metric;
     throw error;
@@ -139,6 +135,5 @@ export const loadFiles = async (
 export const getDatasetMetricFields = (dataset: Dataset | undefined): string[] =>
   dataset?.metricField || [];
 
-export const getDatasetMetricColumns = (
-  dataset: Dataset | undefined,
-): MetricColumn[] => dataset?.metricStore.columns || [];
+export const getDatasetMetricColumns = (dataset: Dataset | undefined): MetricColumn[] =>
+  dataset?.metricStore.columns || [];

@@ -14,10 +14,7 @@ export interface MetricColumnStore {
 export const buildMetricColumnStore = (rows: Datum[][]): MetricColumnStore => {
   const columnCount = rows[0]?.length ?? 0;
   const rowCount = rows.length;
-  const metricColumns: MetricColumn[] = Array.from(
-    { length: columnCount },
-    () => [],
-  );
+  const metricColumns: MetricColumn[] = Array.from({ length: columnCount }, () => []);
 
   if (columnCount === 0) {
     return {

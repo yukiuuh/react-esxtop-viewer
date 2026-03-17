@@ -1,9 +1,9 @@
 {
   "name": "esxtop-viewer",
-  "private": true,
   "version": "0.3.0",
+  "private": true,
+  "license": "MIT",
   "type": "module",
-  "packageManager": "yarn@1.22.22",
   "scripts": {
     "dev": "vp dev",
     "build": "tsc && vp build",
@@ -12,7 +12,6 @@
     "preview": "vp preview",
     "format": "vp fmt"
   },
-  "license": "MIT",
   "dependencies": {
     "@cds/city": "^1.1.0",
     "@cds/core": "6.16.1",
@@ -46,5 +45,6 @@
     "@types/react": "18.3.28",
     "vite": "npm:@voidzero-dev/vite-plus-core@0.1.11",
     "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.11"
-  }
+  },
+  "packageManager": "yarn@1.22.22"
 }
