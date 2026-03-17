@@ -32,10 +32,8 @@ const SplitPane: React.FC<SplitPaneProps> = ({
       if (!isDragging.current) return;
       const containerRect = containerRef.current?.getBoundingClientRect();
       if (!containerRect) return;
-      const newSplitPos =
-        ((e.clientX - containerRect.left) / containerRect.width) * 100;
-      if (minPosition < newSplitPos && newSplitPos < maxPosition)
-        setSplitPos(newSplitPos);
+      const newSplitPos = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      if (minPosition < newSplitPos && newSplitPos < maxPosition) setSplitPos(newSplitPos);
     },
     [setSplitPos, maxPosition, minPosition],
   );

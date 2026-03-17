@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeBuildCommand": "yarn build",
-    "beforeDevCommand": "yarn dev",
+    "beforeBuildCommand": "corepack yarn build",
+    "beforeDevCommand": "corepack yarn dev",
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173"
   },

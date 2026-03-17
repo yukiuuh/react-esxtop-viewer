@@ -1,4 +1,5 @@
 import { TreeNode } from "./TreeNode";
+import { parseCsvHeaderLine } from "./parsers/csvFormat";
 
 export const removeFirstLineFromCSV = (
   inputFile: File,
@@ -90,17 +91,7 @@ export const readCsvHeader = async (
     throw new Error("Empty CSV file");
   }
 
-  return header
-    .split(",")
-    .map((field) => {
-      const f = field.trim().split('"')[1] || "";
-      try {
-        return decodeURI(f);
-      } catch (e) {
-        return f;
-      }
-    })
-    .filter((field) => field.length > 0);
+  return parseCsvHeaderLine(header);
 };
 
 export const parseCSVv2 = async (
@@ -163,12 +154,9 @@ export const parseCSVv3 = async (
   onProgress?: (percent: number) => void,
 ): Promise<{ data: string[][] }> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL("./csvParser.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./csvParser.worker.ts", import.meta.url), {
+      type: "module",
+    });
 
     const allRows: string[][] = [];
 
@@ -234,12 +222,9 @@ export const readCsvHeaderV2 = async (
   onRead?: (bytesRead: number) => void,
 ): Promise<string[]> => {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL("./headerReader.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    const worker = new Worker(new URL("./headerReader.worker.ts", import.meta.url), {
+      type: "module",
+    });
 
     worker.onmessage = (e) => {
       if (e.data.type === "progress") {

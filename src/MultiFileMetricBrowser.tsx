@@ -1,22 +1,18 @@
 import { CdsTree, CdsTreeItem } from "@cds/react/tree-view";
-import React, { useState, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { TreeNode } from "./TreeNode";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { EsxtopData } from "./esxtop";
-import {
-  ClarityIcons,
-  blockIcon,
-  blocksGroupIcon,
-  folderIcon,
-} from "@cds/core/icon";
+import { Dataset } from "./models/dataset";
+import { ClarityIcons, blockIcon, blocksGroupIcon, folderIcon } from "@cds/core/icon";
 import { CdsIcon } from "@cds/react/icon";
 
 ClarityIcons.addIcons(blockIcon, blocksGroupIcon, folderIcon);
 
 type Props = {
   loading?: boolean;
-  esxtopData?: EsxtopData[];
-  onSelectedChange?: (node: TreeNode, selectedEsxtopDataIndex: number) => void;
+  datasets?: Dataset[];
+  resetKey?: string;
+  onSelectedChange?: (node: TreeNode, selectedDatasetIndex: number) => void;
 };
 
 interface FlatRow {
@@ -30,15 +26,21 @@ interface FlatRow {
 
 const MultiFileMetricBrowser: React.FC<Props> = ({
   loading,
-  esxtopData,
+  datasets,
+  resetKey,
   onSelectedChange,
 }) => {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [selectedNodePath, setSelectedNodePath] = useState<string>("");
 
+  useEffect(() => {
+    setExpandedNodes(new Set());
+    setSelectedNodePath("");
+  }, [resetKey]);
+
   const flatRows = useMemo((): FlatRow[] => {
     const rows: FlatRow[] = [];
-    if (!esxtopData) return rows;
+    if (!datasets) return rows;
 
     const buildMetricRows = (
       nodes: TreeNode[],
@@ -64,9 +66,9 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
       });
     };
 
-    esxtopData.forEach((data, index) => {
+    datasets.forEach((dataset, index) => {
       // フィルタリングによって子が空になった場合でもファイル名は表示する
-      if (!data.metricFieldTree) return;
+      if (!dataset.metricFieldTree) return;
 
       const fileNodeId = `file-${index}`;
       const isFileExpanded = expandedNodes.has(fileNodeId);
@@ -74,8 +76,8 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
       rows.push({
         id: fileNodeId,
         node: {
-          id: data.fileName,
-          children: data.metricFieldTree.children,
+          id: dataset.fileName,
+          children: dataset.metricFieldTree.children,
           path: fileNodeId,
           field_index: -2,
         },
@@ -86,12 +88,12 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
       });
 
       if (isFileExpanded) {
-        buildMetricRows(data.metricFieldTree.children, 1, index, fileNodeId);
+        buildMetricRows(dataset.metricFieldTree.children, 1, index, fileNodeId);
       }
     });
 
     return rows;
-  }, [esxtopData, expandedNodes]);
+  }, [datasets, expandedNodes]);
 
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -124,10 +126,7 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
   }
 
   return (
-    <div
-      ref={parentRef}
-      style={{ height: "100%", overflowY: "scroll", overflowX: "clip" }}
-    >
+    <div ref={parentRef} style={{ height: "100%", overflowY: "scroll", overflowX: "clip" }}>
       <div style={{ overflow: "visible", width: "90vw" }}>
         <CdsTree
           style={{
@@ -143,9 +142,7 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
             return (
               <CdsTreeItem
                 key={row.id}
-                selected={
-                  selectedNodePath === row.node.path && row.isSelectable
-                }
+                selected={selectedNodePath === row.node.path && row.isSelectable}
                 expanded={row.isExpanded}
                 expandable={row.node.children.length > 0}
                 onExpandedChange={() => handleToggleExpand(row.id)}
@@ -167,9 +164,7 @@ const MultiFileMetricBrowser: React.FC<Props> = ({
                   shape={
                     row.node.children.length == 0
                       ? "block"
-                      : row.node.children.some(
-                            (child) => child.field_index == -1,
-                          )
+                      : row.node.children.some((child) => child.field_index == -1)
                         ? "folder"
                         : "blocks-group"
                   }

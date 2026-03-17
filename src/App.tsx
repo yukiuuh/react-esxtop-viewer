@@ -1,4 +1,3 @@
-import "@cds/city/css/bundles/default.min.css"; // load base font
 import { ControlStatus } from "@cds/core/forms";
 import "@cds/core/global.css"; // pre-minified version breaks
 import "@cds/core/icon/register.js";
@@ -6,168 +5,224 @@ import "@cds/core/internal-components/split-handle/register.js";
 import "@cds/core/styles/theme.dark.css"; // pre-minified version breaks
 import { CdsButton } from "@cds/react/button";
 import { CdsDivider } from "@cds/react/divider";
-import { Datum } from "plotly.js";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useReducer, useRef } from "react";
 import "./App.css";
-import { computeEsxtopFieldTreeV2, EsxtopData } from "./esxtop";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
+import { useFileLoadSession } from "./hooks/useFileLoadSession";
+import { useMetricViewPerf } from "./hooks/useMetricViewPerf";
 import LoadingOverlay from "./LoadingOverlay";
 import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
+import { Dataset } from "./models/dataset";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
+import { getDatasetMetricColumns, getDatasetMetricFields } from "./services/fileLoadService";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
-import { parseCSVv3, readCsvHeaderV2, removeFirstLineFromCSV } from "./utils";
+
+type AppState = {
+  datasets: Dataset[];
+  selectedDatasetIndex: number;
+  selectedNode: TreeNode | null;
+  loading: boolean;
+  fileStatus: ControlStatus;
+  filterKeyword: string;
+  splitPosition: number;
+  loadingMessage: string;
+  renderMeasurementToken: number;
+};
+
+type AppAction =
+  | { type: "set-filter-keyword"; filterKeyword: string }
+  | { type: "set-split-position"; splitPosition: number }
+  | { type: "set-loading-message"; loadingMessage: string }
+  | { type: "start-loading" }
+  | { type: "load-succeeded"; datasets: Dataset[] }
+  | { type: "load-failed" }
+  | { type: "clear-files" }
+  | {
+      type: "select-node";
+      node: TreeNode;
+      selectedDatasetIndex: number;
+      renderMeasurementToken: number;
+    };
+
+const initialState: AppState = {
+  datasets: [],
+  selectedDatasetIndex: 0,
+  selectedNode: null,
+  loading: false,
+  fileStatus: "neutral",
+  filterKeyword: "",
+  splitPosition: 20,
+  loadingMessage: "",
+  renderMeasurementToken: 0,
+};
+
+const appReducer = (state: AppState, action: AppAction): AppState => {
+  switch (action.type) {
+    case "set-filter-keyword":
+      return { ...state, filterKeyword: action.filterKeyword };
+    case "set-split-position":
+      return { ...state, splitPosition: action.splitPosition };
+    case "set-loading-message":
+      return { ...state, loadingMessage: action.loadingMessage };
+    case "start-loading":
+      return {
+        ...state,
+        datasets: [],
+        selectedDatasetIndex: 0,
+        selectedNode: null,
+        loading: true,
+        fileStatus: "neutral",
+        loadingMessage: "",
+      };
+    case "load-succeeded":
+      return {
+        ...state,
+        datasets: action.datasets,
+        loading: false,
+        fileStatus: "success",
+        loadingMessage: "",
+      };
+    case "load-failed":
+      return {
+        ...state,
+        loading: false,
+        fileStatus: "error",
+        loadingMessage: "",
+      };
+    case "clear-files":
+      return {
+        ...state,
+        datasets: [],
+        selectedDatasetIndex: 0,
+        selectedNode: null,
+        loading: false,
+        fileStatus: "neutral",
+        loadingMessage: "",
+      };
+    case "select-node":
+      return {
+        ...state,
+        selectedNode: action.node,
+        selectedDatasetIndex: action.selectedDatasetIndex,
+        renderMeasurementToken: action.renderMeasurementToken,
+      };
+    default:
+      return state;
+  }
+};
 
 const App: React.FC = () => {
-  // 1. Stateの統合：関連するデータを一つのオブジェクト配列にまとめる
-  const [esxtopData, setEsxtopData] = useState<EsxtopData[]>([]);
-  const [selectedEsxtopDataIndex, setSelectedEsxtopDataIndex] = useState(0);
-  const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fileStatus, setFileStatus] = useState<ControlStatus>("neutral");
-  const [filterKeyword, setFilterKeyword] = useState("");
-  const [splitPosition, setSplitPosition] = useState(20);
-  const [loadingMessage, setLoadingMessage] = useState("");
+  const [state, dispatch] = useReducer(appReducer, initialState);
 
   const performanceChartRef = useRef<PerformanceChartHandle>(null);
+  const metricViewPerf = useMetricViewPerf();
+  const handleFileChange = useFileLoadSession(dispatch, metricViewPerf.reset);
 
-  // 2. 派生データのメモ化：esxtopDataやselectedEsxtopDataIndexが変更されたときだけ再計算
   const currentMetricField = useMemo(
-    () => esxtopData[selectedEsxtopDataIndex]?.metricField || [],
-    [esxtopData, selectedEsxtopDataIndex],
+    () => getDatasetMetricFields(state.datasets[state.selectedDatasetIndex]),
+    [state.datasets, state.selectedDatasetIndex],
   );
-  const currentMetricData = useMemo(
-    () => esxtopData[selectedEsxtopDataIndex]?.metricData || [],
-    [esxtopData, selectedEsxtopDataIndex],
+  const currentMetricColumns = useMemo(
+    () => getDatasetMetricColumns(state.datasets[state.selectedDatasetIndex]),
+    [state.datasets, state.selectedDatasetIndex],
   );
 
-  // 3. フィルタリングされたツリーのメモ化：esxtopDataかfilterKeywordが変更されたときだけ再計算
-  const filteredEsxtopData = useMemo(() => {
-    if (!filterKeyword) {
-      return esxtopData;
+  const filteredDatasets = useMemo(() => {
+    if (!state.filterKeyword) {
+      return state.datasets;
     }
-    // Return a new EsxtopData array with filtered trees
-    return esxtopData.map((data) => ({
-      ...data,
-      metricFieldTree: filterTree(data.metricFieldTree, filterKeyword),
+    return state.datasets.map((dataset) => ({
+      ...dataset,
+      metricFieldTree: filterTree(dataset.metricFieldTree, state.filterKeyword),
     }));
-  }, [esxtopData, filterKeyword]);
+  }, [state.datasets, state.filterKeyword]);
+  const browserResetKey = useMemo(
+    () => state.datasets.map((dataset) => dataset.fileName).join("|"),
+    [state.datasets],
+  );
 
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
   };
 
-  const handleFileChange = async (files: File[]) => {
-    if (files.length === 0) {
-      setEsxtopData([]);
-      setFileStatus("neutral");
-      setLoading(false);
-      return;
-    }
-
-    // State更新をまとめて行う
-    setEsxtopData([]);
-    setFileStatus("neutral");
-    setLoading(true);
-
-    try {
-      const results = await Promise.all(
-        files.map(async (file) => {
-          const fields = await readCsvHeaderV2(file, (bytesRead) => {
-            setLoadingMessage(
-              `Loading header from ${file.name}: ${bytesRead} bytes`,
-            );
-          });
-
-          const fieldTree = await computeEsxtopFieldTreeV2(
-            fields,
-            (progress) => {
-              setLoadingMessage(
-                `Computing field tree from ${file.name}: ${Math.trunc(progress)}%`,
-              );
-            },
-          );
-
-          const trimmedFile = await removeFirstLineFromCSV(file, (progress) => {
-            setLoadingMessage(
-              `Trimming header from ${file.name}: ${Math.trunc(progress)}%`,
-            );
-          });
-
-          const csvData = await parseCSVv3(trimmedFile, false, (progress) => {
-            setLoadingMessage(
-              `Parsing data from ${file.name}: ${Math.trunc(progress)}%`,
-            );
-          });
-
-          return {
-            fileName: file.name,
-            metricField: fields,
-            metricFieldTree: fieldTree,
-            metricData: csvData.data as Datum[][],
-          };
-        }),
-      );
-      // 成功時に一度だけStateを更新
-      setEsxtopData(results);
-      setFileStatus("success");
-    } catch (e) {
-      console.error("File processing failed:", e);
-      setFileStatus("error");
-    } finally {
-      setLoading(false);
-      setLoadingMessage("");
-    }
+  const handleMetricViewRendered = (stats: {
+    token: number;
+    seriesCount: number;
+    pointCount: number;
+  }) => {
+    metricViewPerf.completeMeasurement(stats);
   };
 
   return (
     <div className="main-container">
       <Header
-        onFilterKeywordChange={setFilterKeyword}
+        onFilterKeywordChange={(filterKeyword) =>
+          dispatch({ type: "set-filter-keyword", filterKeyword })
+        }
         appVersion={import.meta.env.VITE_APP_VERSION}
       />
       <div cds-layout="horizontal align:stretch" style={{ height: "100%" }}>
         <div cds-layout="vertical align:stretch" style={{ height: "100%" }}>
           <div cds-layout="horizontal align:stretch gap:md wrap:none">
-            <SplitPane initPosition={20} onPositionChanged={setSplitPosition}>
+            <SplitPane
+              initPosition={20}
+              onPositionChanged={(splitPosition) =>
+                dispatch({ type: "set-split-position", splitPosition })
+              }
+            >
               <MultiFileMetricBrowser
-                loading={loading}
-                esxtopData={filteredEsxtopData}
+                loading={state.loading}
+                datasets={filteredDatasets}
+                resetKey={browserResetKey}
                 onSelectedChange={(node, dataIndex) => {
-                  setSelectedNode(node);
-                  setSelectedEsxtopDataIndex(dataIndex);
+                  const nextToken = state.renderMeasurementToken + 1;
+                  const dataset = state.datasets[dataIndex];
+                  metricViewPerf.beginMeasurement({
+                    token: nextToken,
+                    startedAtMs: performance.now(),
+                    fileName: dataset?.fileName ?? `dataset-${dataIndex}`,
+                    nodePath: node.path,
+                    fieldIndex: node.field_index,
+                  });
+                  dispatch({
+                    type: "select-node",
+                    node,
+                    selectedDatasetIndex: dataIndex,
+                    renderMeasurementToken: nextToken,
+                  });
                 }}
               />
-              {selectedNode ? (
+              {state.selectedNode ? (
                 <PerformanceChart
+                  key={`${state.datasets[state.selectedDatasetIndex]?.fileName ?? "none"}:${state.selectedNode.path}`}
                   ref={performanceChartRef}
-                  splitPosition={splitPosition}
-                  node={selectedNode}
-                  metricData={currentMetricData}
+                  splitPosition={state.splitPosition}
+                  node={state.selectedNode}
+                  metricColumns={currentMetricColumns}
                   metricField={currentMetricField}
+                  renderMeasurementToken={state.renderMeasurementToken}
+                  onRenderMeasured={handleMetricViewRendered}
                 />
               ) : (
                 <></>
               )}
             </SplitPane>
           </div>
-          <CdsDivider
-            orientation="horizontal"
-            cds-layout="align:shrink"
-          ></CdsDivider>
+          <CdsDivider orientation="horizontal" cds-layout="align:shrink"></CdsDivider>
           <div cds-layout="align:shrink m:sm">
             <div cds-layout="horizontal gap:md align:vertical-center">
               <FileLoader
-                status={fileStatus}
-                loading={loading}
+                status={state.fileStatus}
+                loading={state.loading}
                 onChangeFiles={handleFileChange}
               />
               <CdsButton
                 cds-layout="align:right"
                 action="outline"
                 size="sm"
-                disabled={!selectedNode}
+                disabled={!state.selectedNode}
                 onClick={handleExportToImage}
               >
                 EXPORT
@@ -176,7 +231,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
-      <LoadingOverlay message={loadingMessage} loading={loading} />
+      <LoadingOverlay message={state.loadingMessage} loading={state.loading} />
     </div>
   );
 };

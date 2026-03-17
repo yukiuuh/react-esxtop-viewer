@@ -1,17 +1,20 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useState,
-  memo,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, memo } from "react";
 import Plotly from "plotly.js-dist-min";
-import createPlotlyComponent from "react-plotly.js/factory";
-import { Datum, PlotData, Layout, Data } from "plotly.js";
+import createPlotlyComponentModule from "react-plotly.js/factory.js";
+import { Layout, Data } from "plotly.js";
 import { TreeNode } from "./TreeNode";
+import { MetricColumn } from "./models/dataset";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
+import { applyLegendVisibility, buildBaseSeries, buildChartTitle } from "./chartSeries";
+
+const createPlotlyComponent =
+  (
+    createPlotlyComponentModule as {
+      default?: typeof createPlotlyComponentModule;
+    }
+  ).default ?? createPlotlyComponentModule;
 const Plot = createPlotlyComponent(Plotly);
 
 export type LegendSetting = {
@@ -21,9 +24,11 @@ export type LegendSetting = {
 
 type Props = {
   node: TreeNode;
-  metricData: Datum[][];
+  metricColumns: MetricColumn[];
   metricField: string[];
   splitPosition: number;
+  renderMeasurementToken?: number;
+  onRenderMeasured?: (stats: { token: number; seriesCount: number; pointCount: number }) => void;
 };
 
 export interface PerformanceChartHandle {
@@ -32,33 +37,18 @@ export interface PerformanceChartHandle {
 
 const chartDivId = "plotlyChart";
 
-// "nan"などの文字列をプロット可能なnullに変換し、数値をパースするヘルパー関数
-const sanitizeDatum = (datum: Datum): number | null => {
-  if (datum === null || datum === undefined) {
-    return null;
-  }
-  if (typeof datum === "number") {
-    return isNaN(datum) ? null : datum;
-  }
-  if (typeof datum === "string") {
-    // "nan" は大文字小文字を区別せずにチェック
-    if (datum.toLowerCase() === "nan") {
-      return null;
-    }
-    const num = parseFloat(datum);
-    return isNaN(num) ? null : num;
-  }
-  // string, number, null 以外はプロットしない
-  return null;
-};
-
 const PerformanceChart = memo(
   forwardRef<PerformanceChartHandle, Props>((props, ref) => {
-    const { node, metricData, metricField, splitPosition } = props;
-    const selectedFieldIndex = node.field_index;
+    const {
+      node,
+      metricColumns,
+      metricField,
+      splitPosition,
+      renderMeasurementToken,
+      onRenderMeasured,
+    } = props;
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
-    const hasNoData =
-      node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
+    const hasNoData = node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
     useImperativeHandle(ref, () => ({
       exportToImage() {
         if (hasNoData) return;
@@ -92,52 +82,53 @@ const PerformanceChart = memo(
       Plotly.Plots.resize(chartDivId);
     }, [splitPosition]);
 
-    const x = metricData.map((d) => {
-      const _d = d as string[];
-      return _d[0];
-    });
-    const title =
-      selectedFieldIndex < 0 ? node.path : metricField[selectedFieldIndex];
-    let allData: Partial<PlotData>[];
+    useEffect(() => {
+      return () => {
+        const chartElement = document.getElementById(chartDivId);
+        if (chartElement) {
+          Plotly.purge(chartElement);
+        }
+      };
+    }, []);
 
-    if (selectedFieldIndex < 0) {
-      const leafs = node.children.filter((v) => v.children.length == 0);
+    const title = useMemo(() => buildChartTitle(node, metricField), [node, metricField]);
+    const baseSeries = useMemo(() => buildBaseSeries(node, metricColumns), [node, metricColumns]);
+    const selectedData = useMemo(
+      () => applyLegendVisibility(baseSeries, legendSettings),
+      [baseSeries, legendSettings],
+    );
+    const pointCount = useMemo(
+      () =>
+        selectedData.reduce((total, series) => {
+          if (!series.y) {
+            return total;
+          }
 
-      allData = leafs
-        .filter((leaf) => leaf.field_index > 0)
-        .map((leaf) => {
-          const leafIndex = leaf.field_index;
-          const data: Partial<PlotData> = {
-            type: "scattergl",
-            x: x,
-            y: metricData.map((d) => sanitizeDatum((d as Datum[])[leafIndex])),
-            name: leaf.id,
-            marker: { symbol: "circle", opacity: 1, size: 5 },
-            mode: "lines+markers",
-          };
-          return data;
+          if (Array.isArray(series.y) || ArrayBuffer.isView(series.y)) {
+            return total + series.y.length;
+          }
+
+          return total;
+        }, 0),
+      [selectedData],
+    );
+
+    useEffect(() => {
+      if (!renderMeasurementToken || !onRenderMeasured) {
+        return;
+      }
+
+      const frameId = requestAnimationFrame(() => {
+        onRenderMeasured({
+          token: renderMeasurementToken,
+          seriesCount: selectedData.length,
+          pointCount,
         });
-    } else {
-      const y = metricData.map((d) =>
-        sanitizeDatum((d as Datum[])[selectedFieldIndex]),
-      );
+      });
 
-      const data1: Partial<PlotData> = {
-        type: "scattergl",
-        x: x,
-        y: y,
-        marker: { symbol: "circle", opacity: 1, size: 3 },
-        mode: "lines+markers",
-      };
-      allData = [data1];
-    }
-    const selectedData = allData.map((d) => {
-      const visible = legendSettings.find((s) => s.name == d.name)?.visible;
-      return {
-        ...d,
-        visible: visible || visible == undefined ? true : "legendonly",
-      };
-    });
+      return () => cancelAnimationFrame(frameId);
+    }, [onRenderMeasured, pointCount, renderMeasurementToken, selectedData.length]);
+
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
       xaxis: { showspikes: true, tickmode: "auto", nticks: 20 },
@@ -167,9 +158,7 @@ const PerformanceChart = memo(
                 visible: d.visible == undefined || d.visible == true,
               };
             }) || [];
-          if (
-            JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)
-          ) {
+          if (JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)) {
             setLegendSettings(nextLegendSettings);
           }
         }}

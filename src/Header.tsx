@@ -17,7 +17,7 @@ const Header: React.FC<Props> = (props) => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      props.onFilterKeywordChange && props.onFilterKeywordChange(inputValue);
+      props.onFilterKeywordChange?.(inputValue);
     }, INPUT_DELAY_MSEC);
     return () => clearTimeout(timer);
   }, [inputValue, props]);
@@ -29,20 +29,13 @@ const Header: React.FC<Props> = (props) => {
           <CdsIcon shape="line-chart" />
           <span className="title">
             esxtop Viewer{" "}
-            <span
-              className="version p7"
-              style={{ color: "var(--cds-alias-utility-gray)" }}
-            >
+            <span className="version p7" style={{ color: "var(--cds-alias-utility-gray)" }}>
               {props.appVersion}
             </span>
           </span>
         </a>
       </div>
-      <form
-        className="search"
-        autoComplete="off"
-        onSubmit={(e) => e.preventDefault()}
-      >
+      <form className="search" autoComplete="off" onSubmit={(e) => e.preventDefault()}>
         <label htmlFor="search-input-header">
           <input
             id="search-input-header"
