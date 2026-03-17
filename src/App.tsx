@@ -5,84 +5,149 @@ import "@cds/core/internal-components/split-handle/register.js";
 import "@cds/core/styles/theme.dark.css"; // pre-minified version breaks
 import { CdsButton } from "@cds/react/button";
 import { CdsDivider } from "@cds/react/divider";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useReducer, useRef } from "react";
 import "./App.css";
-import {
-  FileLoadMetric,
-  MetricViewMetric,
-  logMemorySnapshotToConsole,
-  logMetricViewPerfToConsole,
-  logPerfSessionToConsole,
-} from "./devPerf";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
+import { useFileLoadSession } from "./hooks/useFileLoadSession";
+import { useMetricViewPerf } from "./hooks/useMetricViewPerf";
 import LoadingOverlay from "./LoadingOverlay";
 import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import { Dataset } from "./models/dataset";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
-import { formatLoadProgress } from "./services/loadProgress";
 import {
   getDatasetMetricColumns,
   getDatasetMetricFields,
-  loadFiles,
 } from "./services/fileLoadService";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
 
+type AppState = {
+  datasets: Dataset[];
+  selectedDatasetIndex: number;
+  selectedNode: TreeNode | null;
+  loading: boolean;
+  fileStatus: ControlStatus;
+  filterKeyword: string;
+  splitPosition: number;
+  loadingMessage: string;
+  renderMeasurementToken: number;
+};
+
+type AppAction =
+  | { type: "set-filter-keyword"; filterKeyword: string }
+  | { type: "set-split-position"; splitPosition: number }
+  | { type: "set-loading-message"; loadingMessage: string }
+  | { type: "start-loading" }
+  | { type: "load-succeeded"; datasets: Dataset[] }
+  | { type: "load-failed" }
+  | { type: "clear-files" }
+  | {
+      type: "select-node";
+      node: TreeNode;
+      selectedDatasetIndex: number;
+      renderMeasurementToken: number;
+    };
+
+const initialState: AppState = {
+  datasets: [],
+  selectedDatasetIndex: 0,
+  selectedNode: null,
+  loading: false,
+  fileStatus: "neutral",
+  filterKeyword: "",
+  splitPosition: 20,
+  loadingMessage: "",
+  renderMeasurementToken: 0,
+};
+
+const appReducer = (state: AppState, action: AppAction): AppState => {
+  switch (action.type) {
+    case "set-filter-keyword":
+      return { ...state, filterKeyword: action.filterKeyword };
+    case "set-split-position":
+      return { ...state, splitPosition: action.splitPosition };
+    case "set-loading-message":
+      return { ...state, loadingMessage: action.loadingMessage };
+    case "start-loading":
+      return {
+        ...state,
+        datasets: [],
+        selectedDatasetIndex: 0,
+        selectedNode: null,
+        loading: true,
+        fileStatus: "neutral",
+        loadingMessage: "",
+      };
+    case "load-succeeded":
+      return {
+        ...state,
+        datasets: action.datasets,
+        loading: false,
+        fileStatus: "success",
+        loadingMessage: "",
+      };
+    case "load-failed":
+      return {
+        ...state,
+        loading: false,
+        fileStatus: "error",
+        loadingMessage: "",
+      };
+    case "clear-files":
+      return {
+        ...state,
+        datasets: [],
+        selectedDatasetIndex: 0,
+        selectedNode: null,
+        loading: false,
+        fileStatus: "neutral",
+        loadingMessage: "",
+      };
+    case "select-node":
+      return {
+        ...state,
+        selectedNode: action.node,
+        selectedDatasetIndex: action.selectedDatasetIndex,
+        renderMeasurementToken: action.renderMeasurementToken,
+      };
+    default:
+      return state;
+  }
+};
+
 const App: React.FC = () => {
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [selectedDatasetIndex, setSelectedDatasetIndex] = useState(0);
-  const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [fileStatus, setFileStatus] = useState<ControlStatus>("neutral");
-  const [filterKeyword, setFilterKeyword] = useState("");
-  const [splitPosition, setSplitPosition] = useState(20);
-  const [loadingMessage, setLoadingMessage] = useState("");
-  const [renderMeasurementToken, setRenderMeasurementToken] = useState(0);
+  const [state, dispatch] = useReducer(appReducer, initialState);
 
   const performanceChartRef = useRef<PerformanceChartHandle>(null);
-  const pendingMetricViewRef = useRef<{
-    token: number;
-    startedAtMs: number;
-    fileName: string;
-    nodePath: string;
-    fieldIndex: number;
-  } | null>(null);
-  const metricViewMetricsRef = useRef<MetricViewMetric[]>([]);
+  const metricViewPerf = useMetricViewPerf();
+  const handleFileChange = useFileLoadSession(dispatch, metricViewPerf.reset);
 
   const currentMetricField = useMemo(
-    () => getDatasetMetricFields(datasets[selectedDatasetIndex]),
-    [datasets, selectedDatasetIndex],
+    () => getDatasetMetricFields(state.datasets[state.selectedDatasetIndex]),
+    [state.datasets, state.selectedDatasetIndex],
   );
   const currentMetricColumns = useMemo(
-    () => getDatasetMetricColumns(datasets[selectedDatasetIndex]),
-    [datasets, selectedDatasetIndex],
+    () => getDatasetMetricColumns(state.datasets[state.selectedDatasetIndex]),
+    [state.datasets, state.selectedDatasetIndex],
   );
 
   const filteredDatasets = useMemo(() => {
-    if (!filterKeyword) {
-      return datasets;
+    if (!state.filterKeyword) {
+      return state.datasets;
     }
-    return datasets.map((dataset) => ({
+    return state.datasets.map((dataset) => ({
       ...dataset,
-      metricFieldTree: filterTree(dataset.metricFieldTree, filterKeyword),
+      metricFieldTree: filterTree(dataset.metricFieldTree, state.filterKeyword),
     }));
-  }, [datasets, filterKeyword]);
+  }, [state.datasets, state.filterKeyword]);
   const browserResetKey = useMemo(
-    () => datasets.map((dataset) => dataset.fileName).join("|"),
-    [datasets],
+    () => state.datasets.map((dataset) => dataset.fileName).join("|"),
+    [state.datasets],
   );
 
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
-  };
-
-  const clearLoadedState = () => {
-    pendingMetricViewRef.current = null;
-    metricViewMetricsRef.current = [];
-    setSelectedNode(null);
-    setSelectedDatasetIndex(0);
-    setDatasets([]);
   };
 
   const handleMetricViewRendered = (stats: {
@@ -90,113 +155,57 @@ const App: React.FC = () => {
     seriesCount: number;
     pointCount: number;
   }) => {
-    const pendingMetricView = pendingMetricViewRef.current;
-
-    if (!pendingMetricView || pendingMetricView.token !== stats.token) {
-      return;
-    }
-
-    const metric: MetricViewMetric = {
-      fileName: pendingMetricView.fileName,
-      nodePath: pendingMetricView.nodePath,
-      fieldIndex: pendingMetricView.fieldIndex,
-      durationMs: performance.now() - pendingMetricView.startedAtMs,
-      seriesCount: stats.seriesCount,
-      pointCount: stats.pointCount,
-      renderedAt: new Date().toISOString(),
-    };
-
-    metricViewMetricsRef.current.push(metric);
-    logMetricViewPerfToConsole(metric, metricViewMetricsRef.current);
-    pendingMetricViewRef.current = null;
-  };
-
-  const handleFileChange = async (files: File[]) => {
-    if (files.length === 0) {
-      clearLoadedState();
-      setFileStatus("neutral");
-      setLoading(false);
-      logMemorySnapshotToConsole("[dev-perf] after clear files");
-      return;
-    }
-
-    logMemorySnapshotToConsole("[dev-perf] before clearing current dataset");
-    clearLoadedState();
-    setFileStatus("neutral");
-    setLoading(true);
-
-    const sessionStart = performance.now();
-    const startedAt = new Date().toISOString();
-
-    try {
-      const result = await loadFiles(files, {
-        onProgress(event) {
-          setLoadingMessage(formatLoadProgress(event));
-        },
-      });
-      setDatasets(result.datasets);
-      setFileStatus("success");
-      logPerfSessionToConsole({
-        startedAt,
-        totalDurationMs: performance.now() - sessionStart,
-        files: result.metrics,
-      });
-      logMemorySnapshotToConsole("[dev-perf] after load");
-    } catch (e) {
-      console.error("File processing failed:", e);
-      setFileStatus("error");
-      const failedMetric = (e as Error & { __perfMetric?: FileLoadMetric }).__perfMetric;
-      if (failedMetric) {
-        logPerfSessionToConsole({
-          startedAt,
-          totalDurationMs: performance.now() - sessionStart,
-          files: [failedMetric],
-        });
-      }
-    } finally {
-      setLoading(false);
-      setLoadingMessage("");
-    }
+    metricViewPerf.completeMeasurement(stats);
   };
 
   return (
     <div className="main-container">
       <Header
-        onFilterKeywordChange={setFilterKeyword}
+        onFilterKeywordChange={(filterKeyword) =>
+          dispatch({ type: "set-filter-keyword", filterKeyword })
+        }
         appVersion={import.meta.env.VITE_APP_VERSION}
       />
       <div cds-layout="horizontal align:stretch" style={{ height: "100%" }}>
         <div cds-layout="vertical align:stretch" style={{ height: "100%" }}>
           <div cds-layout="horizontal align:stretch gap:md wrap:none">
-            <SplitPane initPosition={20} onPositionChanged={setSplitPosition}>
+            <SplitPane
+              initPosition={20}
+              onPositionChanged={(splitPosition) =>
+                dispatch({ type: "set-split-position", splitPosition })
+              }
+            >
               <MultiFileMetricBrowser
-                loading={loading}
+                loading={state.loading}
                 datasets={filteredDatasets}
                 resetKey={browserResetKey}
                 onSelectedChange={(node, dataIndex) => {
-                  const nextToken = renderMeasurementToken + 1;
-                  const dataset = datasets[dataIndex];
-                  pendingMetricViewRef.current = {
+                  const nextToken = state.renderMeasurementToken + 1;
+                  const dataset = state.datasets[dataIndex];
+                  metricViewPerf.beginMeasurement({
                     token: nextToken,
                     startedAtMs: performance.now(),
                     fileName: dataset?.fileName ?? `dataset-${dataIndex}`,
                     nodePath: node.path,
                     fieldIndex: node.field_index,
-                  };
-                  setSelectedNode(node);
-                  setSelectedDatasetIndex(dataIndex);
-                  setRenderMeasurementToken(nextToken);
+                  });
+                  dispatch({
+                    type: "select-node",
+                    node,
+                    selectedDatasetIndex: dataIndex,
+                    renderMeasurementToken: nextToken,
+                  });
                 }}
               />
-              {selectedNode ? (
+              {state.selectedNode ? (
                 <PerformanceChart
-                  key={`${datasets[selectedDatasetIndex]?.fileName ?? "none"}:${selectedNode.path}`}
+                  key={`${state.datasets[state.selectedDatasetIndex]?.fileName ?? "none"}:${state.selectedNode.path}`}
                   ref={performanceChartRef}
-                  splitPosition={splitPosition}
-                  node={selectedNode}
+                  splitPosition={state.splitPosition}
+                  node={state.selectedNode}
                   metricColumns={currentMetricColumns}
                   metricField={currentMetricField}
-                  renderMeasurementToken={renderMeasurementToken}
+                  renderMeasurementToken={state.renderMeasurementToken}
                   onRenderMeasured={handleMetricViewRendered}
                 />
               ) : (
@@ -207,12 +216,16 @@ const App: React.FC = () => {
           <CdsDivider orientation="horizontal" cds-layout="align:shrink"></CdsDivider>
           <div cds-layout="align:shrink m:sm">
             <div cds-layout="horizontal gap:md align:vertical-center">
-              <FileLoader status={fileStatus} loading={loading} onChangeFiles={handleFileChange} />
+              <FileLoader
+                status={state.fileStatus}
+                loading={state.loading}
+                onChangeFiles={handleFileChange}
+              />
               <CdsButton
                 cds-layout="align:right"
                 action="outline"
                 size="sm"
-                disabled={!selectedNode}
+                disabled={!state.selectedNode}
                 onClick={handleExportToImage}
               >
                 EXPORT
@@ -221,7 +234,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
-      <LoadingOverlay message={loadingMessage} loading={loading} />
+      <LoadingOverlay message={state.loadingMessage} loading={state.loading} />
     </div>
   );
 };
