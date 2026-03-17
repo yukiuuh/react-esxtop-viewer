@@ -1,6 +1,10 @@
 import { Datum } from "plotly.js";
 import { TreeNode } from "../TreeNode";
-import { Dataset, DatasetFormat } from "../models/dataset";
+import {
+  buildMetricColumnStore,
+  Dataset,
+  DatasetFormat,
+} from "../models/dataset";
 import { LoadProgressEvent } from "../services/loadProgress";
 
 export interface ParsedMetricData {
@@ -27,5 +31,5 @@ export const toDataset = (
   format: parser.format,
   metricField: parsed.fields,
   metricFieldTree: parsed.fieldTree,
-  metricData: parsed.rows,
+  metricStore: buildMetricColumnStore(parsed.rows),
 });

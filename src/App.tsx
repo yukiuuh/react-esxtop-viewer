@@ -7,7 +7,13 @@ import { CdsButton } from "@cds/react/button";
 import { CdsDivider } from "@cds/react/divider";
 import React, { useMemo, useRef, useState } from "react";
 import "./App.css";
-import { FileLoadMetric, logPerfSessionToConsole } from "./devPerf";
+import {
+  FileLoadMetric,
+  MetricViewMetric,
+  logMemorySnapshotToConsole,
+  logMetricViewPerfToConsole,
+  logPerfSessionToConsole,
+} from "./devPerf";
 import FileLoader from "./FileLoader";
 import Header from "./Header";
 import LoadingOverlay from "./LoadingOverlay";
@@ -16,7 +22,7 @@ import { Dataset } from "./models/dataset";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
 import { formatLoadProgress } from "./services/loadProgress";
 import {
-  getDatasetMetricData,
+  getDatasetMetricColumns,
   getDatasetMetricFields,
   loadFiles,
 } from "./services/fileLoadService";
@@ -32,15 +38,24 @@ const App: React.FC = () => {
   const [filterKeyword, setFilterKeyword] = useState("");
   const [splitPosition, setSplitPosition] = useState(20);
   const [loadingMessage, setLoadingMessage] = useState("");
+  const [renderMeasurementToken, setRenderMeasurementToken] = useState(0);
 
   const performanceChartRef = useRef<PerformanceChartHandle>(null);
+  const pendingMetricViewRef = useRef<{
+    token: number;
+    startedAtMs: number;
+    fileName: string;
+    nodePath: string;
+    fieldIndex: number;
+  } | null>(null);
+  const metricViewMetricsRef = useRef<MetricViewMetric[]>([]);
 
   const currentMetricField = useMemo(
     () => getDatasetMetricFields(datasets[selectedDatasetIndex]),
     [datasets, selectedDatasetIndex],
   );
-  const currentMetricData = useMemo(
-    () => getDatasetMetricData(datasets[selectedDatasetIndex]),
+  const currentMetricColumns = useMemo(
+    () => getDatasetMetricColumns(datasets[selectedDatasetIndex]),
     [datasets, selectedDatasetIndex],
   );
 
@@ -58,15 +73,50 @@ const App: React.FC = () => {
     performanceChartRef.current?.exportToImage();
   };
 
-  const handleFileChange = async (files: File[]) => {
-    if (files.length === 0) {
-      setDatasets([]);
-      setFileStatus("neutral");
-      setLoading(false);
+  const clearLoadedState = () => {
+    pendingMetricViewRef.current = null;
+    setSelectedNode(null);
+    setSelectedDatasetIndex(0);
+    setDatasets([]);
+  };
+
+  const handleMetricViewRendered = (stats: {
+    token: number;
+    seriesCount: number;
+    pointCount: number;
+  }) => {
+    const pendingMetricView = pendingMetricViewRef.current;
+
+    if (!pendingMetricView || pendingMetricView.token !== stats.token) {
       return;
     }
 
-    setDatasets([]);
+    const metric: MetricViewMetric = {
+      fileName: pendingMetricView.fileName,
+      nodePath: pendingMetricView.nodePath,
+      fieldIndex: pendingMetricView.fieldIndex,
+      durationMs: performance.now() - pendingMetricView.startedAtMs,
+      seriesCount: stats.seriesCount,
+      pointCount: stats.pointCount,
+      renderedAt: new Date().toISOString(),
+    };
+
+    metricViewMetricsRef.current.push(metric);
+    logMetricViewPerfToConsole(metric, metricViewMetricsRef.current);
+    pendingMetricViewRef.current = null;
+  };
+
+  const handleFileChange = async (files: File[]) => {
+    if (files.length === 0) {
+      clearLoadedState();
+      setFileStatus("neutral");
+      setLoading(false);
+      logMemorySnapshotToConsole("[dev-perf] after clear files");
+      return;
+    }
+
+    logMemorySnapshotToConsole("[dev-perf] before clearing current dataset");
+    clearLoadedState();
     setFileStatus("neutral");
     setLoading(true);
 
@@ -86,6 +136,7 @@ const App: React.FC = () => {
         totalDurationMs: performance.now() - sessionStart,
         files: result.metrics,
       });
+      logMemorySnapshotToConsole("[dev-perf] after load");
     } catch (e) {
       console.error("File processing failed:", e);
       setFileStatus("error");
@@ -118,17 +169,30 @@ const App: React.FC = () => {
                 loading={loading}
                 datasets={filteredDatasets}
                 onSelectedChange={(node, dataIndex) => {
+                  const nextToken = renderMeasurementToken + 1;
+                  const dataset = datasets[dataIndex];
+                  pendingMetricViewRef.current = {
+                    token: nextToken,
+                    startedAtMs: performance.now(),
+                    fileName: dataset?.fileName ?? `dataset-${dataIndex}`,
+                    nodePath: node.path,
+                    fieldIndex: node.field_index,
+                  };
                   setSelectedNode(node);
                   setSelectedDatasetIndex(dataIndex);
+                  setRenderMeasurementToken(nextToken);
                 }}
               />
               {selectedNode ? (
                 <PerformanceChart
+                  key={`${datasets[selectedDatasetIndex]?.fileName ?? "none"}:${selectedNode.path}`}
                   ref={performanceChartRef}
                   splitPosition={splitPosition}
                   node={selectedNode}
-                  metricData={currentMetricData}
+                  metricColumns={currentMetricColumns}
                   metricField={currentMetricField}
+                  renderMeasurementToken={renderMeasurementToken}
+                  onRenderMeasured={handleMetricViewRendered}
                 />
               ) : (
                 <></>

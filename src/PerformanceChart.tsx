@@ -10,6 +10,7 @@ import Plotly from "plotly.js-dist-min";
 import createPlotlyComponentModule from "react-plotly.js/factory.js";
 import { Layout, Data } from "plotly.js";
 import { TreeNode } from "./TreeNode";
+import { MetricColumn } from "./models/dataset";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
@@ -34,9 +35,15 @@ export type LegendSetting = {
 
 type Props = {
   node: TreeNode;
-  metricData: Datum[][];
+  metricColumns: MetricColumn[];
   metricField: string[];
   splitPosition: number;
+  renderMeasurementToken?: number;
+  onRenderMeasured?: (stats: {
+    token: number;
+    seriesCount: number;
+    pointCount: number;
+  }) => void;
 };
 
 export interface PerformanceChartHandle {
@@ -47,8 +54,14 @@ const chartDivId = "plotlyChart";
 
 const PerformanceChart = memo(
   forwardRef<PerformanceChartHandle, Props>((props, ref) => {
-    const { node, metricData, metricField, splitPosition } = props;
-    const selectedFieldIndex = node.field_index;
+    const {
+      node,
+      metricColumns,
+      metricField,
+      splitPosition,
+      renderMeasurementToken,
+      onRenderMeasured,
+    } = props;
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
     const hasNoData =
       node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
@@ -85,18 +98,64 @@ const PerformanceChart = memo(
       Plotly.Plots.resize(chartDivId);
     }, [splitPosition]);
 
+    useEffect(() => {
+      return () => {
+        const chartElement = document.getElementById(chartDivId);
+        if (chartElement) {
+          Plotly.purge(chartElement);
+        }
+      };
+    }, []);
+
     const title = useMemo(() => buildChartTitle(node, metricField), [
       node,
       metricField,
     ]);
-    const baseSeries = useMemo(() => buildBaseSeries(node, metricData), [
+    const baseSeries = useMemo(() => buildBaseSeries(node, metricColumns), [
       node,
-      metricData,
+      metricColumns,
     ]);
     const selectedData = useMemo(
       () => applyLegendVisibility(baseSeries, legendSettings),
       [baseSeries, legendSettings],
     );
+    const pointCount = useMemo(
+      () =>
+        selectedData.reduce((total, series) => {
+          if (!series.y) {
+            return total;
+          }
+
+          if (Array.isArray(series.y) || ArrayBuffer.isView(series.y)) {
+            return total + series.y.length;
+          }
+
+          return total;
+        }, 0),
+      [selectedData],
+    );
+
+    useEffect(() => {
+      if (!renderMeasurementToken || !onRenderMeasured) {
+        return;
+      }
+
+      const frameId = requestAnimationFrame(() => {
+        onRenderMeasured({
+          token: renderMeasurementToken,
+          seriesCount: selectedData.length,
+          pointCount,
+        });
+      });
+
+      return () => cancelAnimationFrame(frameId);
+    }, [
+      onRenderMeasured,
+      pointCount,
+      renderMeasurementToken,
+      selectedData.length,
+    ]);
+
     const layout: Partial<Layout> = {
       yaxis: { rangemode: "tozero" },
       xaxis: { showspikes: true, tickmode: "auto", nticks: 20 },

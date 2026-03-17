@@ -1,12 +1,12 @@
-import { Datum } from "plotly.js";
 import { FileLoadMetric, FileLoadStepMetric } from "../devPerf";
-import { Dataset } from "../models/dataset";
+import { Dataset, MetricColumn } from "../models/dataset";
 import { esxtopParser } from "../parsers/esxtopParser";
 import { FileParser, toDataset } from "../parsers/types";
 import { LoadProgressEvent } from "./loadProgress";
 
 type LoadFilesOptions = {
   onProgress?: (event: LoadProgressEvent) => void;
+  parsers?: FileParser[];
 };
 
 type LoadFilesResult = {
@@ -16,8 +16,11 @@ type LoadFilesResult = {
 
 const availableParsers: FileParser[] = [esxtopParser];
 
-const resolveParser = async (file: File): Promise<FileParser> => {
-  for (const parser of availableParsers) {
+const resolveParser = async (
+  file: File,
+  parsers: FileParser[],
+): Promise<FileParser> => {
+  for (const parser of parsers) {
     if (await parser.canParse(file)) {
       return parser;
     }
@@ -26,80 +29,116 @@ const resolveParser = async (file: File): Promise<FileParser> => {
   throw new Error(`No parser available for file: ${file.name}`);
 };
 
+const createParseProgressTracker = (
+  fileName: string,
+  onProgress?: (event: LoadProgressEvent) => void,
+) => {
+  let progressEvents = 0;
+
+  return {
+    emit(event: LoadProgressEvent) {
+      progressEvents += 1;
+      onProgress?.(event);
+    },
+    getProgressEventCount() {
+      return progressEvents;
+    },
+    emitDetectingParser() {
+      progressEvents += 1;
+      onProgress?.({
+        fileName,
+        stage: "detect",
+        message: `Detecting parser for ${fileName}`,
+      });
+    },
+  };
+};
+
+const loadFile = async (
+  file: File,
+  parsers: FileParser[],
+  onProgress?: (event: LoadProgressEvent) => void,
+): Promise<{ dataset: Dataset; metric: FileLoadMetric }> => {
+  const fileStart = performance.now();
+  const steps: FileLoadStepMetric[] = [];
+  let metricFieldCount = 0;
+  let metricRowCount = 0;
+  const progressTracker = createParseProgressTracker(file.name, onProgress);
+
+  try {
+    const parserStart = performance.now();
+    progressTracker.emitDetectingParser();
+    const parser = await resolveParser(file, parsers);
+    steps.push({
+      label: "resolve parser",
+      durationMs: performance.now() - parserStart,
+      progressEvents: 1,
+      extra: { format: parser.format },
+    });
+
+    const parseStart = performance.now();
+    const parsed = await parser.parse(file, (event) => progressTracker.emit(event));
+    metricFieldCount = parsed.fields.length;
+    metricRowCount = parsed.rows.length;
+    steps.push({
+      label: "parse dataset",
+      durationMs: performance.now() - parseStart,
+      progressEvents: progressTracker.getProgressEventCount() - 1,
+      extra: {
+        fields: metricFieldCount,
+        rows: metricRowCount,
+      },
+    });
+
+    const dataset = toDataset(file, parser, parsed);
+    const metric: FileLoadMetric = {
+      fileName: file.name,
+      fileSize: file.size,
+      totalDurationMs: performance.now() - fileStart,
+      steps,
+      metricFieldCount,
+      metricRowCount,
+      metricStoreBytes: dataset.metricStore.estimatedBytes,
+      metricNumericColumnCount: dataset.metricStore.numericColumnCount,
+      status: "success",
+    };
+
+    return { dataset, metric };
+  } catch (error) {
+    const metric: FileLoadMetric = {
+      fileName: file.name,
+      fileSize: file.size,
+      totalDurationMs: performance.now() - fileStart,
+      steps,
+      metricFieldCount,
+      metricRowCount,
+      status: "error",
+      errorMessage:
+        error instanceof Error ? error.message : "Unknown error",
+    };
+    (error as Error & { __perfMetric?: FileLoadMetric }).__perfMetric = metric;
+    throw error;
+  }
+};
+
 export const loadFiles = async (
   files: File[],
   options: LoadFilesOptions = {},
 ): Promise<LoadFilesResult> => {
-  const metrics: FileLoadMetric[] = [];
-
-  const datasets = await Promise.all(
-    files.map(async (file) => {
-      const fileStart = performance.now();
-      const steps: FileLoadStepMetric[] = [];
-      let metricFieldCount = 0;
-      let metricRowCount = 0;
-
-      try {
-        const parserStart = performance.now();
-        const parser = await resolveParser(file);
-        steps.push({
-          label: "resolve parser",
-          durationMs: performance.now() - parserStart,
-          progressEvents: 0,
-          extra: { format: parser.format },
-        });
-
-        const parseStart = performance.now();
-        const parsed = await parser.parse(file, options.onProgress);
-        metricFieldCount = parsed.fields.length;
-        metricRowCount = parsed.rows.length;
-        steps.push({
-          label: "parse dataset",
-          durationMs: performance.now() - parseStart,
-          progressEvents: 0,
-          extra: {
-            fields: metricFieldCount,
-            rows: metricRowCount,
-          },
-        });
-
-        const dataset = toDataset(file, parser, parsed);
-        const metric: FileLoadMetric = {
-          fileName: file.name,
-          fileSize: file.size,
-          totalDurationMs: performance.now() - fileStart,
-          steps,
-          metricFieldCount,
-          metricRowCount,
-          status: "success",
-        };
-        metrics.push(metric);
-
-        return dataset;
-      } catch (error) {
-        const metric: FileLoadMetric = {
-          fileName: file.name,
-          fileSize: file.size,
-          totalDurationMs: performance.now() - fileStart,
-          steps,
-          metricFieldCount,
-          metricRowCount,
-          status: "error",
-          errorMessage:
-            error instanceof Error ? error.message : "Unknown error",
-        };
-        metrics.push(metric);
-        (error as Error & { __perfMetric?: FileLoadMetric }).__perfMetric = metric;
-        throw error;
-      }
-    }),
+  const parsers = options.parsers ?? availableParsers;
+  const results = await Promise.all(
+    files.map((file) => loadFile(file, parsers, options.onProgress)),
   );
 
-  return { datasets, metrics };
+  return {
+    datasets: results.map((result) => result.dataset),
+    metrics: results.map((result) => result.metric),
+  };
 };
-
-export const getDatasetMetricData = (dataset: Dataset | undefined): Datum[][] =>
-  dataset?.metricData || [];
 
 export const getDatasetMetricFields = (dataset: Dataset | undefined): string[] =>
   dataset?.metricField || [];
+
+export const getDatasetMetricColumns = (
+  dataset: Dataset | undefined,
+): MetricColumn[] => dataset?.metricStore.columns || [];

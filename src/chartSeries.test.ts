@@ -5,6 +5,7 @@ import {
   buildChartTitle,
   sanitizeDatum,
 } from "./chartSeries";
+import { buildMetricColumnStore } from "./models/dataset";
 import { TreeNode } from "./TreeNode";
 
 describe("chartSeries helpers", () => {
@@ -26,6 +27,10 @@ describe("chartSeries helpers", () => {
   });
 
   test("buildBaseSeries builds grouped leaf series", () => {
+    const metricData = [
+      ["t1", "1", "2"],
+      ["t2", "3", "nan"],
+    ];
     const node: TreeNode = {
       id: "CPU",
       field_index: -1,
@@ -46,15 +51,29 @@ describe("chartSeries helpers", () => {
       ],
     };
 
-    const series = buildBaseSeries(node, [
-      ["t1", "1", "2"],
-      ["t2", "3", "nan"],
-    ]);
+    const series = buildBaseSeries(
+      node,
+      buildMetricColumnStore(metricData).columns,
+    );
 
     expect(series).toHaveLength(2);
     expect(series[0]?.name).toBe("Usage");
-    expect(series[0]?.y).toEqual([1, 3]);
-    expect(series[1]?.y).toEqual([2, null]);
+    expect(Array.from(series[0]?.y as Float64Array)).toEqual([1, 3]);
+    expect(Number.isNaN((series[1]?.y as Float64Array)[1] as number)).toBe(true);
+  });
+
+  test("buildMetricColumnStore transposes row-major metric data", () => {
+    const store = buildMetricColumnStore([
+      ["t1", "1", "2"],
+      ["t2", "3", "4"],
+    ]);
+
+    expect(store.rowCount).toBe(2);
+    expect(store.numericColumnCount).toBe(2);
+    expect(store.columns[0]).toEqual(["t1", "t2"]);
+    expect(Array.from(store.columns[1] as Float64Array)).toEqual([1, 3]);
+    expect(Array.from(store.columns[2] as Float64Array)).toEqual([2, 4]);
+    expect(store.estimatedBytes).toBeGreaterThan(0);
   });
 
   test("applyLegendVisibility hides series marked invisible", () => {

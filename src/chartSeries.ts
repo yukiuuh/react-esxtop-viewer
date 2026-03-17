@@ -1,5 +1,6 @@
 import { Datum, PlotData } from "plotly.js";
 import { TreeNode } from "./TreeNode";
+import { MetricColumn } from "./models/dataset";
 import type { LegendSetting } from "./PerformanceChart";
 
 export const sanitizeDatum = (datum: Datum): number | null => {
@@ -32,9 +33,9 @@ export const buildChartTitle = (
 
 export const buildBaseSeries = (
   node: TreeNode,
-  metricData: Datum[][],
+  metricColumns: MetricColumn[],
 ): Partial<PlotData>[] => {
-  const x = metricData.map((row) => (row as string[])[0]);
+  const x = (metricColumns[0] ?? []) as Datum[] | string[];
 
   if (node.field_index < 0) {
     return node.children
@@ -42,7 +43,7 @@ export const buildBaseSeries = (
       .map((leaf) => ({
         type: "scattergl",
         x,
-        y: metricData.map((row) => sanitizeDatum((row as Datum[])[leaf.field_index])),
+        y: metricColumns[leaf.field_index] as unknown as PlotData["y"],
         name: leaf.id,
         marker: { symbol: "circle", opacity: 1, size: 5 },
         mode: "lines+markers",
@@ -53,7 +54,7 @@ export const buildBaseSeries = (
     {
       type: "scattergl",
       x,
-      y: metricData.map((row) => sanitizeDatum((row as Datum[])[node.field_index])),
+      y: metricColumns[node.field_index] as unknown as PlotData["y"],
       marker: { symbol: "circle", opacity: 1, size: 3 },
       mode: "lines+markers",
     },

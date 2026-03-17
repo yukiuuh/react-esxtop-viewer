@@ -9,8 +9,9 @@ describe("formatLoadProgress", () => {
         stage: "read-header",
         message: "Loading header from sample.csv",
         bytesRead: 256,
+        totalBytes: 1024,
       }),
-    ).toBe("Loading header from sample.csv: 256 bytes");
+    ).toBe("Loading header from sample.csv: 256 / 1024 bytes (25%)");
   });
 
   test("formats percentage progress", () => {
