@@ -15,10 +15,7 @@ import LoadingOverlay from "./LoadingOverlay";
 import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import { Dataset } from "./models/dataset";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
-import {
-  getDatasetMetricColumns,
-  getDatasetMetricFields,
-} from "./services/fileLoadService";
+import { getDatasetMetricColumns, getDatasetMetricFields } from "./services/fileLoadService";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
 

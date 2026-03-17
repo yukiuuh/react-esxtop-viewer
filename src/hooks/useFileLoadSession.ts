@@ -1,9 +1,5 @@
 import { Dispatch } from "react";
-import {
-  FileLoadMetric,
-  logMemorySnapshotToConsole,
-  logPerfSessionToConsole,
-} from "../devPerf";
+import { FileLoadMetric, logMemorySnapshotToConsole, logPerfSessionToConsole } from "../devPerf";
 import { Dataset } from "../models/dataset";
 import { formatLoadProgress } from "../services/loadProgress";
 import { loadFiles } from "../services/fileLoadService";
@@ -53,8 +49,7 @@ export const useFileLoadSession = (
     } catch (error) {
       console.error("File processing failed:", error);
       dispatch({ type: "load-failed" });
-      const failedMetric = (error as Error & { __perfMetric?: FileLoadMetric })
-        .__perfMetric;
+      const failedMetric = (error as Error & { __perfMetric?: FileLoadMetric }).__perfMetric;
       if (failedMetric) {
         logPerfSessionToConsole({
           startedAt,

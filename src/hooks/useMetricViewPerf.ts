@@ -1,8 +1,5 @@
 import { useRef } from "react";
-import {
-  MetricViewMetric,
-  logMetricViewPerfToConsole,
-} from "../devPerf";
+import { MetricViewMetric, logMetricViewPerfToConsole } from "../devPerf";
 
 type PendingMetricView = {
   token: number;
@@ -24,11 +21,7 @@ export const useMetricViewPerf = () => {
     beginMeasurement(metricView: PendingMetricView) {
       pendingMetricViewRef.current = metricView;
     },
-    completeMeasurement(stats: {
-      token: number;
-      seriesCount: number;
-      pointCount: number;
-    }) {
+    completeMeasurement(stats: { token: number; seriesCount: number; pointCount: number }) {
       const pendingMetricView = pendingMetricViewRef.current;
 
       if (!pendingMetricView || pendingMetricView.token !== stats.token) {
