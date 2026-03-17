@@ -15,14 +15,14 @@ const FileLoader: React.FC<Props> = (props) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     if (!inputRef.current?.files) return;
-    const newFileArray = [...Array.from(e.target.files)].filter(
+    const newFileArray = Array.from(e.target.files).filter(
       (file, index, self) => self.findIndex((f) => f.name === file.name) === index,
     );
     const dt = new DataTransfer();
     newFileArray.forEach((file) => dt.items.add(file));
     inputRef.current.files = dt.files;
     setInputFiles(dt.files);
-    props.onChangeFiles && props.onChangeFiles(Array.from(dt.files));
+    props.onChangeFiles?.(Array.from(dt.files));
   };
 
   return (

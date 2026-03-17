@@ -56,7 +56,9 @@ describe("chartSeries helpers", () => {
     expect(series).toHaveLength(2);
     expect(series[0]?.name).toBe("Usage");
     expect(Array.from(series[0]?.y as Float64Array)).toEqual([1, 3]);
-    expect(Number.isNaN((series[1]?.y as Float64Array)[1] as number)).toBe(true);
+    const readySeries = series[1]?.y as Float64Array | undefined;
+    expect(readySeries).toBeDefined();
+    expect(Number.isNaN(readySeries?.[1] ?? 0)).toBe(true);
   });
 
   test("buildMetricColumnStore transposes row-major metric data", () => {

@@ -12,6 +12,7 @@ Visualize esxtop data captured in batch mode.
 ```sh
 corepack enable
 corepack yarn install
+corepack yarn run check
 corepack yarn build
 ```
 

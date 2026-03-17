@@ -17,7 +17,7 @@ const Header: React.FC<Props> = (props) => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      props.onFilterKeywordChange && props.onFilterKeywordChange(inputValue);
+      props.onFilterKeywordChange?.(inputValue);
     }, INPUT_DELAY_MSEC);
     return () => clearTimeout(timer);
   }, [inputValue, props]);
