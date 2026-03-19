@@ -8,6 +8,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
 import { applyLegendVisibility, buildBaseSeries, buildChartTitle } from "./chartSeries";
+import { applyRelayoutToChartLayout, createBaseChartLayout, mergeChartLayout } from "./chartLayout";
 
 const createPlotlyComponent =
   (
@@ -47,7 +48,6 @@ const PerformanceChart = memo(
       renderMeasurementToken,
       onRenderMeasured,
     } = props;
-    const [legendSettings, setLegendSettings] = useState<LegendSetting[]>([]);
     const hasNoData = node.field_index == -1 && !node.children.some((n) => n.field_index != -1);
     useImperativeHandle(ref, () => ({
       exportToImage() {
@@ -93,6 +93,26 @@ const PerformanceChart = memo(
 
     const title = useMemo(() => buildChartTitle(node, metricField), [node, metricField]);
     const baseSeries = useMemo(() => buildBaseSeries(node, metricColumns), [node, metricColumns]);
+    const defaultLegendSettings = useMemo(
+      () =>
+        baseSeries.map((series) => ({
+          name: series.name || "",
+          visible: series.visible === undefined || series.visible === true,
+        })),
+      [baseSeries],
+    );
+    const [legendSettings, setLegendSettings] = useState<LegendSetting[]>(defaultLegendSettings);
+    const baseLayout = useMemo(() => createBaseChartLayout(title), [title]);
+    const [layout, setLayout] = useState<Partial<Layout>>(baseLayout);
+
+    useEffect(() => {
+      setLegendSettings(defaultLegendSettings);
+    }, [defaultLegendSettings]);
+
+    useEffect(() => {
+      setLayout((previousLayout) => mergeChartLayout(previousLayout, baseLayout));
+    }, [baseLayout]);
+
     const selectedData = useMemo(
       () => applyLegendVisibility(baseSeries, legendSettings),
       [baseSeries, legendSettings],
@@ -129,16 +149,6 @@ const PerformanceChart = memo(
       return () => cancelAnimationFrame(frameId);
     }, [onRenderMeasured, pointCount, renderMeasurementToken, selectedData.length]);
 
-    const layout: Partial<Layout> = {
-      yaxis: { rangemode: "tozero" },
-      xaxis: { showspikes: true, tickmode: "auto", nticks: 20 },
-      hovermode: "x",
-      autosize: true,
-      title: title || "Performance Chart",
-      font: {
-        family: "var(--cds-global-typography-font-family)",
-      },
-    };
     if (hasNoData) return <div id={chartDivId}></div>;
 
     return (
@@ -161,6 +171,14 @@ const PerformanceChart = memo(
           if (JSON.stringify(nextLegendSettings) != JSON.stringify(legendSettings)) {
             setLegendSettings(nextLegendSettings);
           }
+        }}
+        onRelayout={(event) => {
+          setLayout((previousLayout) =>
+            applyRelayoutToChartLayout(
+              previousLayout as Partial<Layout>,
+              event as Record<string, unknown>,
+            ),
+          );
         }}
       />
     );
