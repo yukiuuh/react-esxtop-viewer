@@ -3,6 +3,9 @@ import {
   applyLegendVisibility,
   buildBaseSeries,
   buildChartTitle,
+  buildLegendSettings,
+  buildSeriesListSignature,
+  reconcileLegendSettings,
   sanitizeDatum,
 } from "./chartSeries";
 import { buildMetricColumnStore } from "./models/dataset";
@@ -86,5 +89,56 @@ describe("chartSeries helpers", () => {
 
     expect(visible[0]?.visible).toBe(true);
     expect(visible[1]?.visible).toBe("legendonly");
+  });
+
+  test("reconcileLegendSettings preserves selection for the same series list", () => {
+    const previousSettings = [
+      { name: "Usage", visible: true },
+      { name: "Ready", visible: false },
+    ];
+    const nextDefaultSettings = buildLegendSettings([
+      { name: "Usage", y: [10, 20] },
+      { name: "Ready", y: [30, 40] },
+    ]);
+
+    expect(reconcileLegendSettings(previousSettings, nextDefaultSettings)).toBe(previousSettings);
+  });
+
+  test("reconcileLegendSettings resets selection when the series list changes", () => {
+    const previousSettings = [
+      { name: "Usage", visible: true },
+      { name: "Ready", visible: false },
+    ];
+    const nextDefaultSettings = buildLegendSettings([
+      { name: "Usage", y: [10, 20] },
+      { name: "Wait", y: [30, 40] },
+    ]);
+
+    expect(reconcileLegendSettings(previousSettings, nextDefaultSettings)).toEqual(
+      nextDefaultSettings,
+    );
+  });
+
+  test("buildSeriesListSignature is stable across metric paths with the same series list", () => {
+    const firstMetric: TreeNode = {
+      id: "CPU 0",
+      field_index: -1,
+      path: "Host > CPU > CPU 0",
+      children: [
+        { id: "Usage", field_index: 1, path: "Host > CPU > CPU 0 > Usage", children: [] },
+        { id: "Ready", field_index: 2, path: "Host > CPU > CPU 0 > Ready", children: [] },
+      ],
+    };
+    const secondMetric: TreeNode = {
+      id: "CPU 1",
+      field_index: -1,
+      path: "Host > CPU > CPU 1",
+      children: [
+        { id: "Usage", field_index: 3, path: "Host > CPU > CPU 1 > Usage", children: [] },
+        { id: "Ready", field_index: 4, path: "Host > CPU > CPU 1 > Ready", children: [] },
+      ],
+    };
+
+    expect(buildSeriesListSignature(firstMetric)).toBe(buildSeriesListSignature(secondMetric));
   });
 });

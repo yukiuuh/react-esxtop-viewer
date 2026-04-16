@@ -15,6 +15,7 @@ import LoadingOverlay from "./LoadingOverlay";
 import MultiFileMetricBrowser from "./MultiFileMetricBrowser";
 import { Dataset } from "./models/dataset";
 import PerformanceChart, { PerformanceChartHandle } from "./PerformanceChart";
+import { buildSeriesListSignature } from "./chartSeries";
 import { getDatasetMetricColumns, getDatasetMetricFields } from "./services/fileLoadService";
 import SplitPane from "./SplitPane";
 import { filterTree, TreeNode } from "./TreeNode";
@@ -142,6 +143,13 @@ const App: React.FC = () => {
     () => state.datasets.map((dataset) => dataset.fileName).join("|"),
     [state.datasets],
   );
+  const chartResetKey = state.selectedNode
+    ? JSON.stringify([
+        state.selectedDatasetIndex,
+        state.datasets[state.selectedDatasetIndex]?.fileName ?? "none",
+        buildSeriesListSignature(state.selectedNode),
+      ])
+    : "none";
 
   const handleExportToImage = () => {
     performanceChartRef.current?.exportToImage();
@@ -196,7 +204,7 @@ const App: React.FC = () => {
               />
               {state.selectedNode ? (
                 <PerformanceChart
-                  key={`${state.datasets[state.selectedDatasetIndex]?.fileName ?? "none"}:${state.selectedNode.path}`}
+                  key={chartResetKey}
                   ref={performanceChartRef}
                   splitPosition={state.splitPosition}
                   node={state.selectedNode}

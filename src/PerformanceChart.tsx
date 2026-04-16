@@ -7,7 +7,14 @@ import { MetricColumn } from "./models/dataset";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { isTauri } from "@tauri-apps/api/core";
-import { applyLegendVisibility, buildBaseSeries, buildChartTitle } from "./chartSeries";
+import {
+  applyLegendVisibility,
+  buildBaseSeries,
+  buildChartTitle,
+  buildLegendSettings,
+  reconcileLegendSettings,
+} from "./chartSeries";
+import type { LegendSetting } from "./chartSeries";
 import { applyRelayoutToChartLayout, createBaseChartLayout, mergeChartLayout } from "./chartLayout";
 
 const createPlotlyComponent =
@@ -18,10 +25,7 @@ const createPlotlyComponent =
   ).default ?? createPlotlyComponentModule;
 const Plot = createPlotlyComponent(Plotly);
 
-export type LegendSetting = {
-  name: string;
-  visible: boolean;
-};
+export type { LegendSetting };
 
 type Props = {
   node: TreeNode;
@@ -93,20 +97,15 @@ const PerformanceChart = memo(
 
     const title = useMemo(() => buildChartTitle(node, metricField), [node, metricField]);
     const baseSeries = useMemo(() => buildBaseSeries(node, metricColumns), [node, metricColumns]);
-    const defaultLegendSettings = useMemo(
-      () =>
-        baseSeries.map((series) => ({
-          name: series.name || "",
-          visible: series.visible === undefined || series.visible === true,
-        })),
-      [baseSeries],
-    );
+    const defaultLegendSettings = useMemo(() => buildLegendSettings(baseSeries), [baseSeries]);
     const [legendSettings, setLegendSettings] = useState<LegendSetting[]>(defaultLegendSettings);
     const baseLayout = useMemo(() => createBaseChartLayout(title), [title]);
     const [layout, setLayout] = useState<Partial<Layout>>(baseLayout);
 
     useEffect(() => {
-      setLegendSettings(defaultLegendSettings);
+      setLegendSettings((previousSettings) =>
+        reconcileLegendSettings(previousSettings, defaultLegendSettings),
+      );
     }, [defaultLegendSettings]);
 
     useEffect(() => {

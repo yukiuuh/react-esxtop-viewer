@@ -1,7 +1,11 @@
 import { Datum, PlotData } from "plotly.js";
 import { TreeNode } from "./TreeNode";
 import { MetricColumn } from "./models/dataset";
-import type { LegendSetting } from "./PerformanceChart";
+
+export type LegendSetting = {
+  name: string;
+  visible: boolean;
+};
 
 export const sanitizeDatum = (datum: Datum): number | null => {
   if (datum === null || datum === undefined) {
@@ -56,6 +60,42 @@ export const buildBaseSeries = (
       mode: "lines+markers",
     },
   ];
+};
+
+export const buildSeriesListSignature = (node: TreeNode): string => {
+  if (node.field_index < 0) {
+    return JSON.stringify(
+      node.children
+        .filter((child) => child.children.length === 0 && child.field_index > 0)
+        .map((leaf) => leaf.id),
+    );
+  }
+
+  return JSON.stringify([""]);
+};
+
+export const buildLegendSettings = (series: Partial<PlotData>[]): LegendSetting[] =>
+  series.map((item) => ({
+    name: item.name || "",
+    visible: item.visible === undefined || item.visible === true,
+  }));
+
+export const hasSameLegendSeries = (
+  previousSettings: LegendSetting[],
+  nextSettings: LegendSetting[],
+): boolean =>
+  previousSettings.length === nextSettings.length &&
+  previousSettings.every((setting, index) => setting.name === nextSettings[index]?.name);
+
+export const reconcileLegendSettings = (
+  previousSettings: LegendSetting[],
+  nextDefaultSettings: LegendSetting[],
+): LegendSetting[] => {
+  if (hasSameLegendSeries(previousSettings, nextDefaultSettings)) {
+    return previousSettings;
+  }
+
+  return nextDefaultSettings;
 };
 
 export const applyLegendVisibility = (
